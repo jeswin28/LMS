@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Clock, CheckCircle, XCircle, Eye, User, BookOpen, FileText } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import Navbar from '../components/Navbar';
 import Card from '../components/Card';
 import Modal from '../components/Modal';
 import { useUser } from '../context/UserContext';
+import apiService from '../services/api';
 import { useToast } from '../components/ToastProvider';
 
 const AdminApprovalsPage: React.FC = () => {
@@ -14,93 +15,25 @@ const AdminApprovalsPage: React.FC = () => {
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [filterType, setFilterType] = useState('all');
 
-  const pendingApprovals = [
-    {
-      id: 1,
-      type: 'course',
-      title: 'Machine Learning Fundamentals',
-      submitter: 'Dr. Alex Smith',
-      submitterEmail: 'alex.smith@example.com',
-      submittedAt: '2024-02-10 14:30',
-      description: 'Comprehensive introduction to machine learning concepts, algorithms, and practical applications.',
-      category: 'Data Science',
-      price: 149.99,
-      lessons: 25,
-      duration: '12 hours',
-      thumbnail: 'https://images.pexels.com/photos/8386440/pexels-photo-8386440.jpeg?w=300&h=200&fit=crop',
-      status: 'pending',
-      priority: 'high'
-    },
-    {
-      id: 2,
-      type: 'instructor',
-      title: 'Instructor Application - Jane Cooper',
-      submitter: 'Jane Cooper',
-      submitterEmail: 'jane.cooper@example.com',
-      submittedAt: '2024-02-09 16:45',
-      description: 'Application to become an instructor. 5+ years experience in web development.',
-      qualifications: [
-        'Master\'s in Computer Science',
-        '5 years industry experience',
-        'Previous teaching experience at university level'
-      ],
-      portfolio: 'https://janecooper.dev',
-      linkedin: 'https://linkedin.com/in/janecooper',
-      status: 'pending',
-      priority: 'medium'
-    },
-    {
-      id: 3,
-      type: 'course',
-      title: 'Advanced Python Programming',
-      submitter: 'Prof. Lisa Wang',
-      submitterEmail: 'lisa.wang@example.com',
-      submittedAt: '2024-02-08 10:15',
-      description: 'Deep dive into advanced Python concepts including decorators, metaclasses, and async programming.',
-      category: 'Programming',
-      price: 99.99,
-      lessons: 20,
-      duration: '8 hours',
-      thumbnail: 'https://images.pexels.com/photos/1181671/pexels-photo-1181671.jpeg?w=300&h=200&fit=crop',
-      status: 'pending',
-      priority: 'medium'
-    },
-    {
-      id: 4,
-      type: 'content',
-      title: 'Course Content Update - React Hooks',
-      submitter: 'Dr. Sarah Johnson',
-      submitterEmail: 'sarah.johnson@example.com',
-      submittedAt: '2024-02-07 09:20',
-      description: 'Major update to React course including new lessons on React 18 features and concurrent rendering.',
-      courseName: 'React Development Fundamentals',
-      changes: [
-        'Added 5 new lessons on React 18',
-        'Updated existing content for latest best practices',
-        'Added practical exercises for concurrent features'
-      ],
-      status: 'pending',
-      priority: 'low'
-    },
-    {
-      id: 5,
-      type: 'instructor',
-      title: 'Instructor Application - Mark Rodriguez',
-      submitter: 'Mark Rodriguez',
-      submitterEmail: 'mark.rodriguez@example.com',
-      submittedAt: '2024-02-06 13:45',
-      description: 'Experienced UX designer applying to teach design courses.',
-      qualifications: [
-        'Bachelor\'s in Design',
-        '8 years UX/UI design experience',
-        'Led design teams at major tech companies'
-      ],
-      portfolio: 'https://markrodriguez.design',
-      linkedin: 'https://linkedin.com/in/markrodriguez',
-      status: 'pending',
-      priority: 'high'
-    }
-  ];
+  const [pendingApprovals, setPendingApprovals] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchPendingApprovals = async () => {
+      try {
+        const response = await apiService.getPendingApprovals();
+        if (response.success && response.data) {
+          setPendingApprovals(response.data);
+        }
+      } catch (error) {
+        console.error('Failed to load pending approvals:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchPendingApprovals();
+  }, []);
 
   const handleApprove = (itemId: number) => {
     showToast('success', 'Item approved successfully!');
@@ -167,10 +100,10 @@ const AdminApprovalsPage: React.FC = () => {
   return (
     <div className="flex h-screen bg-gray-50">
       <Sidebar userRole={user?.role || 'admin'} />
-      
+
       <div className="flex-1 flex flex-col overflow-hidden lg:ml-0">
         <Navbar />
-        
+
         <main className="flex-1 overflow-y-auto p-6">
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Pending Approvals</h1>
@@ -262,7 +195,7 @@ const AdminApprovalsPage: React.FC = () => {
                     <div className={`p-2 rounded-lg ${getTypeColor(item.type)}`}>
                       {getTypeIcon(item.type)}
                     </div>
-                    
+
                     <div className="flex-1">
                       <div className="flex items-center space-x-3 mb-2">
                         <h3 className="text-lg font-semibold text-gray-900">{item.title}</h3>
@@ -273,9 +206,9 @@ const AdminApprovalsPage: React.FC = () => {
                           {item.priority} priority
                         </span>
                       </div>
-                      
+
                       <p className="text-gray-600 mb-2">{item.description}</p>
-                      
+
                       <div className="flex items-center space-x-4 text-sm text-gray-600">
                         <span>Submitted by: <strong>{item.submitter}</strong></span>
                         <span>•</span>
@@ -356,8 +289,8 @@ const AdminApprovalsPage: React.FC = () => {
                   <CheckCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                   <h3 className="text-lg font-medium text-gray-900 mb-2">No pending approvals</h3>
                   <p className="text-gray-600">
-                    {filterType === 'all' 
-                      ? 'All items have been reviewed.' 
+                    {filterType === 'all'
+                      ? 'All items have been reviewed.'
                       : `No pending ${filterType} approvals.`
                     }
                   </p>
@@ -392,7 +325,7 @@ const AdminApprovalsPage: React.FC = () => {
                   <p><span className="font-medium">Submitted by:</span> {selectedItem.submitter}</p>
                   <p><span className="font-medium">Email:</span> {selectedItem.submitterEmail}</p>
                   <p><span className="font-medium">Date:</span> {selectedItem.submittedAt}</p>
-                  <p><span className="font-medium">Priority:</span> 
+                  <p><span className="font-medium">Priority:</span>
                     <span className={`ml-2 px-2 py-1 text-xs font-medium rounded-full ${getPriorityColor(selectedItem.priority)}`}>
                       {selectedItem.priority}
                     </span>

@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { 
-  MessageSquare, 
-  ThumbsUp, 
-  Reply, 
-  Send, 
+import {
+  MessageSquare,
+  ThumbsUp,
+  Reply,
+  Send,
   User,
   Clock,
   Plus,
@@ -16,6 +16,7 @@ import Navbar from '../components/Navbar';
 import Card from '../components/Card';
 import Modal from '../components/Modal';
 import { useUser } from '../context/UserContext';
+import apiService from '../services/api';
 import { useToast } from '../components/ToastProvider';
 
 const DiscussionForum: React.FC = () => {
@@ -23,7 +24,7 @@ const DiscussionForum: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useUser();
   const { showToast } = useToast();
-  
+
   const [isNewPostModalOpen, setIsNewPostModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('all');
@@ -32,71 +33,25 @@ const DiscussionForum: React.FC = () => {
   const [replyingTo, setReplyingTo] = useState<number | null>(null);
   const [replyContent, setReplyContent] = useState('');
 
-  // Mock forum data
-  const forumPosts = [
-    {
-      id: 1,
-      title: 'Understanding React Hooks',
-      content: 'Can someone explain the difference between useState and useEffect hooks?',
-      author: 'John Doe',
-      authorRole: 'Student',
-      createdAt: '2 hours ago',
-      likes: 5,
-      replies: 3,
-      tags: ['react', 'hooks', 'beginner'],
-      replies_data: [
-        {
-          id: 1,
-          content: 'useState is for managing state, while useEffect is for side effects like API calls.',
-          author: 'Sarah Wilson',
-          authorRole: 'Instructor',
-          createdAt: '1 hour ago',
-          likes: 8
-        },
-        {
-          id: 2,
-          content: 'Great explanation Sarah! I would also add that useEffect can be used for cleanup.',
-          author: 'Mike Johnson',
-          authorRole: 'Student',
-          createdAt: '30 minutes ago',
-          likes: 2
+  const [forumPosts, setForumPosts] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchForumPosts = async () => {
+      try {
+        const response = await apiService.getDiscussionPosts(courseId);
+        if (response.success && response.data) {
+          setForumPosts(response.data);
         }
-      ]
-    },
-    {
-      id: 2,
-      title: 'Assignment 3 Clarification',
-      content: 'I\'m having trouble with the component lifecycle part of assignment 3. Any hints?',
-      author: 'Emily Chen',
-      authorRole: 'Student',
-      createdAt: '4 hours ago',
-      likes: 3,
-      replies: 1,
-      tags: ['assignment', 'lifecycle', 'help'],
-      replies_data: [
-        {
-          id: 3,
-          content: 'Focus on componentDidMount and componentWillUnmount. Think about when you need to set up and clean up.',
-          author: 'Dr. Sarah Johnson',
-          authorRole: 'Instructor',
-          createdAt: '3 hours ago',
-          likes: 5
-        }
-      ]
-    },
-    {
-      id: 3,
-      title: 'Best Practices for State Management',
-      content: 'What are some best practices when it comes to managing complex state in React applications?',
-      author: 'David Brown',
-      authorRole: 'Student',
-      createdAt: '1 day ago',
-      likes: 12,
-      replies: 5,
-      tags: ['state-management', 'best-practices', 'advanced'],
-      replies_data: []
-    }
-  ];
+      } catch (error) {
+        console.error('Failed to load forum posts:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchForumPosts();
+  }, [courseId]);
 
   const handleNewPost = () => {
     if (newPostTitle.trim() && newPostContent.trim()) {
@@ -121,12 +76,12 @@ const DiscussionForum: React.FC = () => {
 
   const filteredPosts = forumPosts.filter(post => {
     const matchesSearch = post.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         post.content.toLowerCase().includes(searchTerm.toLowerCase());
-    
+      post.content.toLowerCase().includes(searchTerm.toLowerCase());
+
     if (selectedFilter === 'all') return matchesSearch;
     if (selectedFilter === 'unanswered') return matchesSearch && post.replies === 0;
     if (selectedFilter === 'my-posts') return matchesSearch && post.author === user?.name;
-    
+
     return matchesSearch;
   });
 
@@ -138,10 +93,10 @@ const DiscussionForum: React.FC = () => {
   return (
     <div className="flex h-screen bg-gray-50">
       <Sidebar userRole={user.role} />
-      
+
       <div className="flex-1 flex flex-col overflow-hidden lg:ml-0">
         <Navbar />
-        
+
         <main className="flex-1 overflow-y-auto p-6">
           {/* Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8">
@@ -204,11 +159,10 @@ const DiscussionForum: React.FC = () => {
                       <div>
                         <h3 className="font-semibold text-gray-900">{post.author}</h3>
                         <div className="flex items-center space-x-2 text-sm text-gray-600">
-                          <span className={`px-2 py-1 rounded-full text-xs ${
-                            post.authorRole === 'Instructor' 
-                              ? 'bg-purple-100 text-purple-800' 
-                              : 'bg-blue-100 text-blue-800'
-                          }`}>
+                          <span className={`px-2 py-1 rounded-full text-xs ${post.authorRole === 'Instructor'
+                            ? 'bg-purple-100 text-purple-800'
+                            : 'bg-blue-100 text-blue-800'
+                            }`}>
                             {post.authorRole}
                           </span>
                           <span>•</span>
@@ -272,11 +226,10 @@ const DiscussionForum: React.FC = () => {
                             </div>
                             <div>
                               <span className="font-medium text-gray-900">{reply.author}</span>
-                              <span className={`ml-2 px-2 py-1 rounded-full text-xs ${
-                                reply.authorRole === 'Instructor' 
-                                  ? 'bg-purple-100 text-purple-800' 
-                                  : 'bg-blue-100 text-blue-800'
-                              }`}>
+                              <span className={`ml-2 px-2 py-1 rounded-full text-xs ${reply.authorRole === 'Instructor'
+                                ? 'bg-purple-100 text-purple-800'
+                                : 'bg-blue-100 text-blue-800'
+                                }`}>
                                 {reply.authorRole}
                               </span>
                               <span className="ml-2 text-sm text-gray-600">{reply.createdAt}</span>

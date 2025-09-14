@@ -1,61 +1,73 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Calendar, Clock, BookOpen, Award } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import Navbar from '../components/Navbar';
 import Card from '../components/Card';
 import ProgressBar from '../components/ProgressBar';
+import apiService from '../services/api';
+import { useUser } from '../context/UserContext';
+import { useToast } from '../components/ToastProvider';
 
 const StudentDashboard: React.FC = () => {
   const navigate = useNavigate();
+  const { user } = useUser();
+  const { showToast } = useToast();
+  const [enrolledCourses, setEnrolledCourses] = useState([]);
+  const [upcomingTasks, setUpcomingTasks] = useState([]);
+  const [stats, setStats] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const enrolledCourses = [
-    {
-      id: 1,
-      title: 'React Development Fundamentals',
-      instructor: 'Dr. Sarah Johnson',
-      progress: 75,
-      nextLesson: 'State Management with Redux',
-      thumbnail: 'https://images.pexels.com/photos/11035380/pexels-photo-11035380.jpeg?w=300&h=200&fit=crop'
-    },
-    {
-      id: 2,
-      title: 'UI/UX Design Principles',
-      instructor: 'Michael Chen',
-      progress: 45,
-      nextLesson: 'Color Theory and Typography',
-      thumbnail: 'https://images.pexels.com/photos/196644/pexels-photo-196644.jpeg?w=300&h=200&fit=crop'
-    },
-    {
-      id: 3,
-      title: 'Data Structures & Algorithms',
-      instructor: 'Prof. David Miller',
-      progress: 30,
-      nextLesson: 'Binary Search Trees',
-      thumbnail: 'https://images.pexels.com/photos/574071/pexels-photo-574071.jpeg?w=300&h=200&fit=crop'
-    }
-  ];
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        // Fetch enrolled courses
+        const enrollmentsResponse = await apiService.getEnrollments();
+        if (enrollmentsResponse.success) {
+          setEnrolledCourses(enrollmentsResponse.data || []);
+        }
 
-  const upcomingTasks = [
-    { id: 1, title: 'React Quiz Chapter 5', due: '2 days', type: 'quiz' },
-    { id: 2, title: 'Design Project Submission', due: '5 days', type: 'assignment' },
-    { id: 3, title: 'Algorithm Practice Test', due: '1 week', type: 'test' }
-  ];
+        // Fetch assignments for upcoming tasks
+        const assignmentsResponse = await apiService.getAssignments();
+        if (assignmentsResponse.success) {
+          const tasks = (assignmentsResponse.data || []).map(assignment => ({
+            id: assignment._id,
+            title: assignment.title,
+            due: assignment.dueDate,
+            type: 'assignment',
+            courseId: assignment.course
+          }));
+          setUpcomingTasks(tasks);
+        }
 
-  const stats = [
-    { label: 'Enrolled Courses', value: '3', icon: BookOpen },
-    { label: 'Completed Courses', value: '12', icon: Award },
-    { label: 'Hours Learned', value: '147', icon: Clock },
-    { label: 'Current Streak', value: '15 days', icon: Calendar }
-  ];
+        // Calculate stats
+        const courseCount = enrolledCourses.length;
+        const completedCount = enrolledCourses.filter(course => course.progress === 100).length;
+        const hoursLearned = enrolledCourses.reduce((total, course) => total + (course.duration || 0), 0);
+
+        setStats([
+          { label: 'Enrolled Courses', value: courseCount.toString(), icon: BookOpen },
+          { label: 'Completed Courses', value: completedCount.toString(), icon: Award },
+          { label: 'Hours Learned', value: hoursLearned.toString(), icon: Clock },
+          { label: 'Current Streak', value: '15 days', icon: Calendar }
+        ]);
+      } catch (error) {
+        showToast('error', 'Failed to load dashboard data');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, []);
 
   return (
     <div className="flex h-screen bg-gray-50">
       <Sidebar userRole="student" />
-      
+
       <div className="flex-1 flex flex-col overflow-hidden lg:ml-0">
         <Navbar />
-        
+
         <main className="flex-1 overflow-y-auto p-6">
           {/* Welcome Section */}
           <div className="mb-8">
@@ -90,30 +102,30 @@ const StudentDashboard: React.FC = () => {
               <h2 className="text-xl font-semibold text-gray-900 mb-4">My Courses</h2>
               <div className="space-y-4">
                 {enrolledCourses.map((course) => (
-                  <Card key={course.id} hover className="cursor-pointer">
+                  <Card key={course._id || course.id} hover className="cursor-pointer">
                     <div className="flex space-x-4">
                       <img
-                        src={course.thumbnail}
-                        alt={course.title}
+                        src={course.course?.thumbnail || course.thumbnail || 'https://images.pexels.com/photos/11035380/pexels-photo-11035380.jpeg?w=300&h=200&fit=crop'}
+                        alt={course.course?.title || course.title}
                         className="w-24 h-16 object-cover rounded-lg"
                       />
                       <div className="flex-1">
                         <h3 className="font-semibold text-gray-900 mb-1">
-                          {course.title}
+                          {course.course?.title || course.title}
                         </h3>
                         <p className="text-sm text-gray-600 mb-2">
-                          by {course.instructor}
+                          by {course.course?.instructor?.name || course.instructor}
                         </p>
-                        <ProgressBar progress={course.progress} className="mb-2" />
+                        <ProgressBar progress={course.progress || 0} className="mb-2" />
                         <div className="flex items-center justify-between">
                           <p className="text-sm text-emerald-600">
-                            Next: {course.nextLesson}
+                            Next: {course.nextLesson || 'Start learning'}
                           </p>
                           <button
-                            onClick={() => navigate(`/course/${course.id}`)}
+                            onClick={() => navigate(`/course/${course.course?._id || course.id}`)}
                             className="text-xs bg-emerald-600 text-white px-2 py-1 rounded hover:bg-emerald-700 transition-colors"
                           >
-                            Continue
+                            Continue Learning
                           </button>
                         </div>
                       </div>
@@ -134,11 +146,10 @@ const StudentDashboard: React.FC = () => {
                         <h4 className="font-medium text-gray-900">{task.title}</h4>
                         <p className="text-sm text-gray-600">Due in {task.due}</p>
                       </div>
-                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                        task.type === 'quiz' ? 'bg-blue-100 text-blue-800' :
+                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${task.type === 'quiz' ? 'bg-blue-100 text-blue-800' :
                         task.type === 'assignment' ? 'bg-purple-100 text-purple-800' :
-                        'bg-orange-100 text-orange-800'
-                      }`}>
+                          'bg-orange-100 text-orange-800'
+                        }`}>
                         {task.type}
                       </span>
                     </div>
@@ -151,21 +162,21 @@ const StudentDashboard: React.FC = () => {
                 <h3 className="text-lg font-semibold text-gray-900 mb-3">Quick Actions</h3>
                 <Card>
                   <div className="space-y-3">
-                    <button 
+                    <button
                       onClick={() => navigate('/forum')}
                       className="w-full text-left p-3 hover:bg-gray-50 rounded-lg transition-colors"
                     >
                       <div className="font-medium text-gray-900">Join Study Group</div>
                       <div className="text-sm text-gray-600">Connect with classmates</div>
                     </button>
-                    <button 
+                    <button
                       onClick={() => navigate('/profile')}
                       className="w-full text-left p-3 hover:bg-gray-50 rounded-lg transition-colors"
                     >
                       <div className="font-medium text-gray-900">View Certificates</div>
                       <div className="text-sm text-gray-600">Download completed certificates</div>
                     </button>
-                    <button 
+                    <button
                       onClick={() => navigate('/courses')}
                       className="w-full text-left p-3 hover:bg-gray-50 rounded-lg transition-colors"
                     >

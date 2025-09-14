@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Clock, CheckCircle, XCircle, Play, RotateCcw } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import Navbar from '../components/Navbar';
 import Card from '../components/Card';
 import Modal from '../components/Modal';
 import { useUser } from '../context/UserContext';
+import apiService from '../services/api';
 import { useToast } from '../components/ToastProvider';
 
 const QuizzesPage: React.FC = () => {
@@ -17,93 +18,25 @@ const QuizzesPage: React.FC = () => {
   const [timeRemaining, setTimeRemaining] = useState(1800); // 30 minutes
   const [quizStarted, setQuizStarted] = useState(false);
 
-  const quizzes = [
-    {
-      id: 1,
-      title: 'React Fundamentals Quiz',
-      course: 'React Development Fundamentals',
-      description: 'Test your knowledge of React basics including components, props, and state.',
-      questions: 15,
-      timeLimit: 30,
-      attempts: 2,
-      maxAttempts: 3,
-      bestScore: 85,
-      status: 'available',
-      dueDate: '2024-02-20',
-      questions_data: [
-        {
-          id: 1,
-          question: 'What is the main purpose of React components?',
-          options: [
-            'To manage application state',
-            'To create reusable UI elements',
-            'To handle API requests',
-            'To style the application'
-          ],
-          correct: 1
-        },
-        {
-          id: 2,
-          question: 'Which hook is used for managing component state?',
-          options: ['useEffect', 'useState', 'useContext', 'useReducer'],
-          correct: 1
-        },
-        {
-          id: 3,
-          question: 'What does JSX stand for?',
-          options: [
-            'JavaScript XML',
-            'Java Syntax Extension',
-            'JavaScript Extension',
-            'Java XML'
-          ],
-          correct: 0
+  const [quizzes, setQuizzes] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchQuizzes = async () => {
+      try {
+        const response = await apiService.getQuizzes();
+        if (response.success && response.data) {
+          setQuizzes(response.data);
         }
-      ]
-    },
-    {
-      id: 2,
-      title: 'JavaScript ES6+ Features',
-      course: 'Advanced JavaScript Concepts',
-      description: 'Quiz covering modern JavaScript features and syntax.',
-      questions: 20,
-      timeLimit: 45,
-      attempts: 1,
-      maxAttempts: 2,
-      bestScore: 92,
-      status: 'completed',
-      dueDate: '2024-02-15',
-      questions_data: []
-    },
-    {
-      id: 3,
-      title: 'Node.js Basics',
-      course: 'Node.js Backend Development',
-      description: 'Test your understanding of Node.js fundamentals and npm.',
-      questions: 12,
-      timeLimit: 25,
-      attempts: 0,
-      maxAttempts: 3,
-      bestScore: null,
-      status: 'upcoming',
-      dueDate: '2024-02-25',
-      questions_data: []
-    },
-    {
-      id: 4,
-      title: 'Design Principles Assessment',
-      course: 'UI/UX Design Principles',
-      description: 'Evaluate your knowledge of design theory and best practices.',
-      questions: 18,
-      timeLimit: 40,
-      attempts: 3,
-      maxAttempts: 3,
-      bestScore: 78,
-      status: 'expired',
-      dueDate: '2024-02-10',
-      questions_data: []
-    }
-  ];
+      } catch (error) {
+        console.error('Failed to load quizzes:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchQuizzes();
+  }, []);
 
   const startQuiz = (quiz: any) => {
     setSelectedQuiz(quiz);
@@ -176,10 +109,10 @@ const QuizzesPage: React.FC = () => {
   return (
     <div className="flex h-screen bg-gray-50">
       <Sidebar userRole={user?.role || 'student'} />
-      
+
       <div className="flex-1 flex flex-col overflow-hidden lg:ml-0">
         <Navbar />
-        
+
         <main className="flex-1 overflow-y-auto p-6">
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Quizzes</h1>
@@ -326,8 +259,8 @@ const QuizzesPage: React.FC = () => {
             <div className="w-full bg-gray-200 rounded-full h-2">
               <div
                 className="bg-emerald-500 h-2 rounded-full transition-all duration-300"
-                style={{ 
-                  width: `${((currentQuestion + 1) / selectedQuiz.questions_data.length) * 100}%` 
+                style={{
+                  width: `${((currentQuestion + 1) / selectedQuiz.questions_data.length) * 100}%`
                 }}
               />
             </div>
@@ -342,11 +275,10 @@ const QuizzesPage: React.FC = () => {
                   {selectedQuiz.questions_data[currentQuestion].options.map((option: string, index: number) => (
                     <label
                       key={index}
-                      className={`flex items-center space-x-3 p-3 border rounded-lg cursor-pointer transition-colors ${
-                        answers[currentQuestion] === index
-                          ? 'border-emerald-500 bg-emerald-50'
-                          : 'border-gray-300 hover:bg-gray-50'
-                      }`}
+                      className={`flex items-center space-x-3 p-3 border rounded-lg cursor-pointer transition-colors ${answers[currentQuestion] === index
+                        ? 'border-emerald-500 bg-emerald-50'
+                        : 'border-gray-300 hover:bg-gray-50'
+                        }`}
                     >
                       <input
                         type="radio"
@@ -372,7 +304,7 @@ const QuizzesPage: React.FC = () => {
               >
                 Previous
               </button>
-              
+
               <div className="flex space-x-3">
                 {currentQuestion < selectedQuiz.questions_data.length - 1 ? (
                   <button
@@ -400,13 +332,12 @@ const QuizzesPage: React.FC = () => {
                   <button
                     key={index}
                     onClick={() => setCurrentQuestion(index)}
-                    className={`w-10 h-10 rounded-lg text-sm font-medium transition-colors ${
-                      index === currentQuestion
-                        ? 'bg-emerald-600 text-white'
-                        : answers[index] !== undefined
+                    className={`w-10 h-10 rounded-lg text-sm font-medium transition-colors ${index === currentQuestion
+                      ? 'bg-emerald-600 text-white'
+                      : answers[index] !== undefined
                         ? 'bg-green-100 text-green-800'
                         : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                    }`}
+                      }`}
                   >
                     {index + 1}
                   </button>

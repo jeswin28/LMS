@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import SplashScreen from './pages/SplashScreen';
 import LoginPage from './pages/LoginPage';
+
 import StudentDashboard from './pages/StudentDashboard';
 import InstructorDashboard from './pages/InstructorDashboard';
 import AdminDashboard from './pages/AdminDashboard';
@@ -33,6 +34,7 @@ function App() {
             <Routes>
               <Route path="/" element={<SplashScreen />} />
               <Route path="/login" element={<LoginPage />} />
+
               <Route path="/dashboard/student" element={<StudentDashboard />} />
               <Route path="/dashboard/instructor" element={<InstructorDashboard />} />
               <Route path="/dashboard/admin" element={<AdminDashboard />} />

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Upload, Users, Eye, Edit, BarChart3 } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
@@ -6,57 +6,60 @@ import Navbar from '../components/Navbar';
 import Card from '../components/Card';
 import Modal from '../components/Modal';
 import { useToast } from '../components/ToastProvider';
+import apiService from '../services/api';
 
 const InstructorDashboard: React.FC = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const { showToast } = useToast();
   const navigate = useNavigate();
 
-  const myCourses = [
-    {
-      id: 1,
-      title: 'React Development Fundamentals',
-      students: 156,
-      lessons: 24,
-      status: 'published',
-      revenue: '$2,340',
-      rating: 4.8,
-      thumbnail: 'https://images.pexels.com/photos/11035380/pexels-photo-11035380.jpeg?w=300&h=200&fit=crop'
-    },
-    {
-      id: 2,
-      title: 'Advanced JavaScript Concepts',
-      students: 89,
-      lessons: 18,
-      status: 'draft',
-      revenue: '$1,780',
-      rating: 4.9,
-      thumbnail: 'https://images.pexels.com/photos/270348/pexels-photo-270348.jpeg?w=300&h=200&fit=crop'
-    },
-    {
-      id: 3,
-      title: 'Node.js Backend Development',
-      students: 203,
-      lessons: 32,
-      status: 'published',
-      revenue: '$4,560',
-      rating: 4.7,
-      thumbnail: 'https://images.pexels.com/photos/574071/pexels-photo-574071.jpeg?w=300&h=200&fit=crop'
-    }
-  ];
+  const [myCourses, setMyCourses] = useState<any[]>([]);
+  const [recentSubmissions, setRecentSubmissions] = useState<any[]>([]);
+  const [stats, setStats] = useState([
+    { label: 'Total Students', value: '0', change: '+0%', color: 'text-emerald-600' },
+    { label: 'Active Courses', value: '0', change: '+0', color: 'text-blue-600' },
+    { label: 'Monthly Revenue', value: '$0', change: '+0%', color: 'text-purple-600' },
+    { label: 'Avg. Rating', value: '0.0', change: '+0.0', color: 'text-orange-600' }
+  ]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const recentSubmissions = [
-    { id: 1, student: 'Alice Johnson', assignment: 'React Component Design', submitted: '2 hours ago', status: 'pending' },
-    { id: 2, student: 'Bob Smith', assignment: 'API Integration Project', submitted: '1 day ago', status: 'graded' },
-    { id: 3, student: 'Carol Davis', assignment: 'Database Schema Design', submitted: '2 days ago', status: 'pending' }
-  ];
+  useEffect(() => {
+    const fetchInstructorData = async () => {
+      try {
+        // Fetch instructor's courses
+        const coursesResponse = await apiService.getMyCourses();
+        if (coursesResponse.success && coursesResponse.data) {
+          const courses = coursesResponse.data;
+          setMyCourses(courses);
 
-  const stats = [
-    { label: 'Total Students', value: '448', change: '+12%', color: 'text-emerald-600' },
-    { label: 'Active Courses', value: '3', change: '+1', color: 'text-blue-600' },
-    { label: 'Monthly Revenue', value: '$8,680', change: '+23%', color: 'text-purple-600' },
-    { label: 'Avg. Rating', value: '4.8', change: '+0.2', color: 'text-orange-600' }
-  ];
+          // Calculate stats based on fetched courses
+          const totalStudents = courses.reduce((total, course) => total + (course.students || 0), 0);
+          const activeCourses = courses.filter(course => course.status === 'published').length;
+          const totalRevenue = courses.reduce((total, course) => total + (parseFloat(course.revenue?.replace('$', '').replace(',', '') || 0)), 0);
+          const avgRating = courses.length > 0 ? (courses.reduce((total, course) => total + (course.rating || 0), 0) / courses.length).toFixed(1) : '0.0';
+
+          setStats([
+            { label: 'Total Students', value: totalStudents.toString(), change: '+12%', color: 'text-emerald-600' },
+            { label: 'Active Courses', value: activeCourses.toString(), change: '+1', color: 'text-blue-600' },
+            { label: 'Monthly Revenue', value: `$${totalRevenue.toLocaleString()}`, change: '+23%', color: 'text-purple-600' },
+            { label: 'Avg. Rating', value: avgRating, change: '+0.2', color: 'text-orange-600' }
+          ]);
+        }
+
+        // Fetch recent submissions
+        const submissionsResponse = await apiService.getRecentSubmissions();
+        if (submissionsResponse.success && submissionsResponse.data) {
+          setRecentSubmissions(submissionsResponse.data.slice(0, 3)); // Show first 3
+        }
+      } catch (error) {
+        console.error('Failed to load instructor data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchInstructorData();
+  }, []);
 
   const handleCreateCourse = () => {
     setIsCreateModalOpen(false);
@@ -67,10 +70,10 @@ const InstructorDashboard: React.FC = () => {
   return (
     <div className="flex h-screen bg-gray-50">
       <Sidebar userRole="instructor" />
-      
+
       <div className="flex-1 flex flex-col overflow-hidden lg:ml-0">
         <Navbar />
-        
+
         <main className="flex-1 overflow-y-auto p-6">
           {/* Header */}
           <div className="flex justify-between items-center mb-8">
@@ -124,11 +127,10 @@ const InstructorDashboard: React.FC = () => {
                       <div className="flex-1">
                         <div className="flex justify-between items-start mb-2">
                           <h3 className="font-semibold text-gray-900">{course.title}</h3>
-                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                            course.status === 'published' 
-                              ? 'bg-green-100 text-green-800' 
-                              : 'bg-yellow-100 text-yellow-800'
-                          }`}>
+                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${course.status === 'published'
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-yellow-100 text-yellow-800'
+                            }`}>
                             {course.status}
                           </span>
                         </div>
@@ -150,14 +152,14 @@ const InstructorDashboard: React.FC = () => {
                           </div>
                         </div>
                         <div className="flex space-x-2 mt-3">
-                          <button 
+                          <button
                             onClick={() => navigate('/create-course')}
                             className="flex items-center space-x-1 text-emerald-600 hover:text-emerald-700"
                           >
                             <Edit className="h-4 w-4" />
                             <span>Edit</span>
                           </button>
-                          <button 
+                          <button
                             onClick={() => navigate(`/course/${course.id}`)}
                             className="flex items-center space-x-1 text-blue-600 hover:text-blue-700"
                           >
@@ -181,18 +183,17 @@ const InstructorDashboard: React.FC = () => {
                     <div key={submission.id} className="border-b border-gray-100 last:border-b-0 pb-4 last:pb-0">
                       <div className="flex justify-between items-start mb-2">
                         <h4 className="font-medium text-gray-900">{submission.student}</h4>
-                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                          submission.status === 'pending' 
-                            ? 'bg-yellow-100 text-yellow-800' 
-                            : 'bg-green-100 text-green-800'
-                        }`}>
+                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${submission.status === 'pending'
+                          ? 'bg-yellow-100 text-yellow-800'
+                          : 'bg-green-100 text-green-800'
+                          }`}>
                           {submission.status}
                         </span>
                       </div>
                       <p className="text-sm text-gray-600 mb-1">{submission.assignment}</p>
                       <p className="text-xs text-gray-500">{submission.submitted}</p>
                       {submission.status === 'pending' && (
-                        <button 
+                        <button
                           onClick={() => navigate('/submissions')}
                           className="mt-2 text-emerald-600 hover:text-emerald-700 text-sm font-medium"
                         >
@@ -209,7 +210,7 @@ const InstructorDashboard: React.FC = () => {
                 <h3 className="text-lg font-semibold text-gray-900 mb-3">Quick Actions</h3>
                 <Card>
                   <div className="space-y-3">
-                    <button 
+                    <button
                       onClick={() => navigate('/create-course')}
                       className="w-full text-left p-3 hover:bg-gray-50 rounded-lg transition-colors"
                     >
@@ -219,7 +220,7 @@ const InstructorDashboard: React.FC = () => {
                       </div>
                       <div className="text-sm text-gray-600 ml-6">Add new course materials</div>
                     </button>
-                    <button 
+                    <button
                       onClick={() => navigate('/admin/analytics')}
                       className="w-full text-left p-3 hover:bg-gray-50 rounded-lg transition-colors"
                     >

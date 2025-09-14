@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, Filter, MoreVertical, UserPlus, Edit, Trash2, Mail, Shield } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import Navbar from '../components/Navbar';
@@ -6,6 +6,7 @@ import Card from '../components/Card';
 import Modal from '../components/Modal';
 import { useUser } from '../context/UserContext';
 import { useToast } from '../components/ToastProvider';
+import apiService from '../services/api';
 
 const AdminUsersPage: React.FC = () => {
   const { user } = useUser();
@@ -20,88 +21,50 @@ const AdminUsersPage: React.FC = () => {
     name: '',
     email: '',
     role: 'student',
-    status: 'active'
+    status: 'active',
+    password: ''
   });
 
-  const users = [
-    {
-      id: 1,
-      name: 'John Doe',
-      email: 'john@example.com',
-      role: 'student',
-      status: 'active',
-      joinedDate: '2024-01-15',
-      lastLogin: '2024-02-10',
-      coursesEnrolled: 3,
-      coursesCompleted: 1,
-      avatar: null
-    },
-    {
-      id: 2,
-      name: 'Sarah Wilson',
-      email: 'sarah@example.com',
-      role: 'instructor',
-      status: 'active',
-      joinedDate: '2024-01-10',
-      lastLogin: '2024-02-11',
-      coursesCreated: 5,
-      studentsEnrolled: 234,
-      avatar: null
-    },
-    {
-      id: 3,
-      name: 'Mike Johnson',
-      email: 'mike@example.com',
-      role: 'student',
-      status: 'inactive',
-      joinedDate: '2024-01-08',
-      lastLogin: '2024-01-20',
-      coursesEnrolled: 2,
-      coursesCompleted: 0,
-      avatar: null
-    },
-    {
-      id: 4,
-      name: 'Emily Chen',
-      email: 'emily@example.com',
-      role: 'instructor',
-      status: 'active',
-      joinedDate: '2024-01-05',
-      lastLogin: '2024-02-11',
-      coursesCreated: 3,
-      studentsEnrolled: 156,
-      avatar: null
-    },
-    {
-      id: 5,
-      name: 'David Brown',
-      email: 'david@example.com',
-      role: 'student',
-      status: 'active',
-      joinedDate: '2024-01-03',
-      lastLogin: '2024-02-09',
-      coursesEnrolled: 4,
-      coursesCompleted: 2,
-      avatar: null
-    },
-    {
-      id: 6,
-      name: 'Lisa Wang',
-      email: 'lisa@example.com',
-      role: 'admin',
-      status: 'active',
-      joinedDate: '2023-12-01',
-      lastLogin: '2024-02-11',
-      permissions: 'Full Access',
-      avatar: null
-    }
-  ];
+  const [users, setUsers] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const handleCreateUser = () => {
-    if (newUser.name && newUser.email) {
-      showToast('success', 'User created successfully!');
-      setIsCreateModalOpen(false);
-      setNewUser({ name: '', email: '', role: 'student', status: 'active' });
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const response = await apiService.getUsers();
+        if (response.success && response.data) {
+          setUsers(response.data);
+        }
+      } catch (error) {
+        showToast('error', 'Failed to load users');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchUsers();
+  }, [showToast]);
+
+  const handleCreateUser = async () => {
+    if (newUser.name && newUser.email && newUser.password) {
+      try {
+        const response = await apiService.createUser({
+          name: newUser.name,
+          email: newUser.email,
+          password: newUser.password,
+          role: newUser.role
+        });
+
+        if (response.success) {
+          showToast('success', 'User created successfully!');
+          setIsCreateModalOpen(false);
+          setNewUser({ name: '', email: '', role: 'student', status: 'active', password: '' });
+        } else {
+          showToast('error', response.error || 'Failed to create user');
+        }
+      } catch (error: any) {
+        showToast('error', error.message || 'Failed to create user');
+      }
     } else {
       showToast('error', 'Please fill in all required fields');
     }
@@ -125,10 +88,10 @@ const AdminUsersPage: React.FC = () => {
 
   const filteredUsers = users.filter(user => {
     const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         user.email.toLowerCase().includes(searchTerm.toLowerCase());
+      user.email.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesRole = filterRole === 'all' || user.role === filterRole;
     const matchesStatus = filterStatus === 'all' || user.status === filterStatus;
-    
+
     return matchesSearch && matchesRole && matchesStatus;
   });
 
@@ -169,10 +132,10 @@ const AdminUsersPage: React.FC = () => {
   return (
     <div className="flex h-screen bg-gray-50">
       <Sidebar userRole={user?.role || 'admin'} />
-      
+
       <div className="flex-1 flex flex-col overflow-hidden lg:ml-0">
         <Navbar />
-        
+
         <main className="flex-1 overflow-y-auto p-6">
           <div className="flex justify-between items-center mb-8">
             <div>
@@ -351,7 +314,7 @@ const AdminUsersPage: React.FC = () => {
                           >
                             <Trash2 className="h-4 w-4" />
                           </button>
-                          <button 
+                          <button
                             onClick={() => navigate(`/admin/users/${user.id}`)}
                             className="p-1 hover:bg-gray-100 rounded"
                             title="View Details"
@@ -406,6 +369,19 @@ const AdminUsersPage: React.FC = () => {
               onChange={(e) => setNewUser(prev => ({ ...prev, email: e.target.value }))}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
               placeholder="Enter email address"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Password *
+            </label>
+            <input
+              type="password"
+              value={newUser.password}
+              onChange={(e) => setNewUser(prev => ({ ...prev, password: e.target.value }))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+              placeholder="Enter password"
               required
             />
           </div>

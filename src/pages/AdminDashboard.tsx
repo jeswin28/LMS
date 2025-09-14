@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Users, BookOpen, CheckCircle, TrendingUp, MoreVertical, UserPlus } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import Navbar from '../components/Navbar';
 import Card from '../components/Card';
 import Modal from '../components/Modal';
 import { useToast } from '../components/ToastProvider';
+import apiService from '../services/api';
 
 const AdminDashboard: React.FC = () => {
   const { showToast } = useToast();
@@ -16,32 +17,73 @@ const AdminDashboard: React.FC = () => {
     password: ''
   });
 
-  const stats = [
-    { label: 'Total Users', value: '2,547', change: '+12%', icon: Users, color: 'text-blue-600' },
-    { label: 'Active Courses', value: '124', change: '+8%', icon: BookOpen, color: 'text-emerald-600' },
-    { label: 'Pending Approvals', value: '15', change: '-3%', icon: CheckCircle, color: 'text-orange-600' },
-    { label: 'Monthly Revenue', value: '$45,680', change: '+25%', icon: TrendingUp, color: 'text-purple-600' }
-  ];
+  const [stats, setStats] = useState([
+    { label: 'Total Users', value: '0', change: '+0%', icon: Users, color: 'text-blue-600' },
+    { label: 'Active Courses', value: '0', change: '+0%', icon: BookOpen, color: 'text-emerald-600' },
+    { label: 'Pending Approvals', value: '0', change: '+0%', icon: CheckCircle, color: 'text-orange-600' },
+    { label: 'Monthly Revenue', value: '$0', change: '+0%', icon: TrendingUp, color: 'text-purple-600' }
+  ]);
 
-  const users = [
-    { id: 1, name: 'John Doe', email: 'john@example.com', role: 'Student', status: 'Active', joined: '2024-01-15' },
-    { id: 2, name: 'Sarah Wilson', email: 'sarah@example.com', role: 'Instructor', status: 'Active', joined: '2024-01-10' },
-    { id: 3, name: 'Mike Johnson', email: 'mike@example.com', role: 'Student', status: 'Inactive', joined: '2024-01-08' },
-    { id: 4, name: 'Emily Chen', email: 'emily@example.com', role: 'Instructor', status: 'Active', joined: '2024-01-05' },
-    { id: 5, name: 'David Brown', email: 'david@example.com', role: 'Student', status: 'Active', joined: '2024-01-03' }
-  ];
+  const [users, setUsers] = useState<any[]>([]);
+  const [pendingApprovals, setPendingApprovals] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const pendingApprovals = [
-    { id: 1, type: 'Course', title: 'Machine Learning Basics', instructor: 'Dr. Alex Smith', submitted: '2 days ago' },
-    { id: 2, type: 'User', title: 'Instructor Application', instructor: 'Jane Cooper', submitted: '1 day ago' },
-    { id: 3, type: 'Course', title: 'Advanced Python Programming', instructor: 'Prof. Lisa Wang', submitted: '3 hours ago' }
-  ];
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        // Fetch users
+        const usersResponse = await apiService.getUsers();
+        if (usersResponse.success && usersResponse.data) {
+          setUsers(usersResponse.data.slice(0, 5)); // Show first 5 users
+        }
 
-  const handleCreateUser = () => {
+        // Fetch analytics
+        const analyticsResponse = await apiService.getAdminAnalytics();
+        if (analyticsResponse.success && analyticsResponse.data) {
+          const analytics = analyticsResponse.data;
+          setStats([
+            { label: 'Total Users', value: analytics.totalUsers?.toString() || '0', change: `+${analytics.userGrowth || 0}%`, icon: Users, color: 'text-blue-600' },
+            { label: 'Active Courses', value: analytics.activeCourses?.toString() || '0', change: `+${analytics.courseGrowth || 0}%`, icon: BookOpen, color: 'text-emerald-600' },
+            { label: 'Pending Approvals', value: analytics.pendingApprovals?.toString() || '0', change: '+0%', icon: CheckCircle, color: 'text-orange-600' },
+            { label: 'Monthly Revenue', value: `$${analytics.totalRevenue || 0}`, change: `+${analytics.revenueGrowth || 0}%`, icon: TrendingUp, color: 'text-purple-600' }
+          ]);
+        }
+
+        // Fetch pending approvals
+        const approvalsResponse = await apiService.getPendingApprovals();
+        if (approvalsResponse.success && approvalsResponse.data) {
+          setPendingApprovals(approvalsResponse.data.slice(0, 3)); // Show first 3 approvals
+        }
+      } catch (error) {
+        console.error('Failed to load dashboard data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, []);
+
+  const handleCreateUser = async () => {
     if (newUser.name && newUser.email && newUser.password) {
-      showToast('success', 'User created successfully!');
-      setIsCreateUserModalOpen(false);
-      setNewUser({ name: '', email: '', role: 'student', password: '' });
+      try {
+        const response = await apiService.createUser({
+          name: newUser.name,
+          email: newUser.email,
+          password: newUser.password,
+          role: newUser.role
+        });
+
+        if (response.success) {
+          showToast('success', 'User created successfully!');
+          setIsCreateUserModalOpen(false);
+          setNewUser({ name: '', email: '', role: 'student', password: '' });
+        } else {
+          showToast('error', response.error || 'Failed to create user');
+        }
+      } catch (error: any) {
+        showToast('error', error.message || 'Failed to create user');
+      }
     } else {
       showToast('error', 'Please fill in all required fields');
     }
@@ -50,10 +92,10 @@ const AdminDashboard: React.FC = () => {
   return (
     <div className="flex h-screen bg-gray-50">
       <Sidebar userRole="admin" />
-      
+
       <div className="flex-1 flex flex-col overflow-hidden lg:ml-0">
         <Navbar />
-        
+
         <main className="flex-1 overflow-y-auto p-6">
           {/* Header */}
           <div className="flex justify-between items-center mb-8">
@@ -86,9 +128,8 @@ const AdminDashboard: React.FC = () => {
                     <p className="text-sm text-gray-600">{stat.label}</p>
                     <div className="flex items-center space-x-2">
                       <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
-                      <span className={`text-sm font-medium ${
-                        stat.change.startsWith('+') ? 'text-green-600' : 'text-red-600'
-                      }`}>
+                      <span className={`text-sm font-medium ${stat.change.startsWith('+') ? 'text-green-600' : 'text-red-600'
+                        }`}>
                         {stat.change}
                       </span>
                     </div>
@@ -103,7 +144,7 @@ const AdminDashboard: React.FC = () => {
             <div className="lg:col-span-2">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-semibold text-gray-900">Recent Users</h2>
-                <button 
+                <button
                   onClick={() => navigate('/admin/users')}
                   className="text-emerald-600 hover:text-emerald-700 font-medium"
                 >
@@ -132,20 +173,18 @@ const AdminDashboard: React.FC = () => {
                             </div>
                           </td>
                           <td className="py-3 px-4">
-                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                              user.role === 'Instructor' 
-                                ? 'bg-purple-100 text-purple-800' 
-                                : 'bg-blue-100 text-blue-800'
-                            }`}>
+                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${user.role === 'Instructor'
+                              ? 'bg-purple-100 text-purple-800'
+                              : 'bg-blue-100 text-blue-800'
+                              }`}>
                               {user.role}
                             </span>
                           </td>
                           <td className="py-3 px-4">
-                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                              user.status === 'Active' 
-                                ? 'bg-green-100 text-green-800' 
-                                : 'bg-red-100 text-red-800'
-                            }`}>
+                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${user.status === 'Active'
+                              ? 'bg-green-100 text-green-800'
+                              : 'bg-red-100 text-red-800'
+                              }`}>
                               {user.status}
                             </span>
                           </td>
@@ -175,11 +214,10 @@ const AdminDashboard: React.FC = () => {
                       <div className="flex justify-between items-start mb-2">
                         <div className="flex-1">
                           <div className="flex items-center space-x-2 mb-1">
-                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                              approval.type === 'Course' 
-                                ? 'bg-emerald-100 text-emerald-800' 
-                                : 'bg-blue-100 text-blue-800'
-                            }`}>
+                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${approval.type === 'Course'
+                              ? 'bg-emerald-100 text-emerald-800'
+                              : 'bg-blue-100 text-blue-800'
+                              }`}>
                               {approval.type}
                             </span>
                           </div>

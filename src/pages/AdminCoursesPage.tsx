@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, Filter, Eye, Edit, Trash2, Users, Star, DollarSign } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import Navbar from '../components/Navbar';
 import Card from '../components/Card';
 import Modal from '../components/Modal';
 import { useUser } from '../context/UserContext';
+import apiService from '../services/api';
 import { useToast } from '../components/ToastProvider';
 
 const AdminCoursesPage: React.FC = () => {
@@ -16,116 +17,25 @@ const AdminCoursesPage: React.FC = () => {
   const [selectedCourse, setSelectedCourse] = useState<any>(null);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
 
-  const courses = [
-    {
-      id: 1,
-      title: 'React Development Fundamentals',
-      instructor: 'Dr. Sarah Johnson',
-      category: 'Programming',
-      status: 'published',
-      students: 156,
-      rating: 4.8,
-      reviews: 42,
-      price: 99.99,
-      revenue: 15599.44,
-      createdDate: '2024-01-15',
-      lastUpdated: '2024-02-10',
-      lessons: 24,
-      duration: '8 hours',
-      thumbnail: 'https://images.pexels.com/photos/11035380/pexels-photo-11035380.jpeg?w=300&h=200&fit=crop',
-      description: 'Learn the fundamentals of React development with hands-on projects and real-world examples.'
-    },
-    {
-      id: 2,
-      title: 'Advanced JavaScript Concepts',
-      instructor: 'Michael Chen',
-      category: 'Programming',
-      status: 'published',
-      students: 89,
-      rating: 4.9,
-      reviews: 28,
-      price: 79.99,
-      revenue: 7119.11,
-      createdDate: '2024-01-10',
-      lastUpdated: '2024-02-08',
-      lessons: 18,
-      duration: '6 hours',
-      thumbnail: 'https://images.pexels.com/photos/270348/pexels-photo-270348.jpeg?w=300&h=200&fit=crop',
-      description: 'Master advanced JavaScript concepts including closures, prototypes, and async programming.'
-    },
-    {
-      id: 3,
-      title: 'Node.js Backend Development',
-      instructor: 'Prof. David Miller',
-      category: 'Programming',
-      status: 'published',
-      students: 203,
-      rating: 4.7,
-      reviews: 67,
-      price: 129.99,
-      revenue: 26407.97,
-      createdDate: '2024-01-05',
-      lastUpdated: '2024-02-05',
-      lessons: 32,
-      duration: '12 hours',
-      thumbnail: 'https://images.pexels.com/photos/574071/pexels-photo-574071.jpeg?w=300&h=200&fit=crop',
-      description: 'Build scalable backend applications with Node.js, Express, and MongoDB.'
-    },
-    {
-      id: 4,
-      title: 'UI/UX Design Principles',
-      instructor: 'Emily Rodriguez',
-      category: 'Design',
-      status: 'draft',
-      students: 0,
-      rating: 0,
-      reviews: 0,
-      price: 89.99,
-      revenue: 0,
-      createdDate: '2024-02-01',
-      lastUpdated: '2024-02-11',
-      lessons: 15,
-      duration: '5 hours',
-      thumbnail: 'https://images.pexels.com/photos/196644/pexels-photo-196644.jpeg?w=300&h=200&fit=crop',
-      description: 'Learn the fundamentals of user interface and user experience design.'
-    },
-    {
-      id: 5,
-      title: 'Digital Marketing Mastery',
-      instructor: 'Alex Thompson',
-      category: 'Marketing',
-      status: 'published',
-      students: 78,
-      rating: 4.6,
-      reviews: 23,
-      price: 69.99,
-      revenue: 5459.22,
-      createdDate: '2024-01-20',
-      lastUpdated: '2024-02-07',
-      lessons: 20,
-      duration: '7 hours',
-      thumbnail: 'https://images.pexels.com/photos/265087/pexels-photo-265087.jpeg?w=300&h=200&fit=crop',
-      description: 'Master digital marketing strategies including SEO, social media, and content marketing.'
-    },
-    {
-      id: 6,
-      title: 'Data Science with Python',
-      instructor: 'Dr. Lisa Wang',
-      category: 'Data Science',
-      status: 'under_review',
-      students: 0,
-      rating: 0,
-      reviews: 0,
-      price: 149.99,
-      revenue: 0,
-      createdDate: '2024-02-05',
-      lastUpdated: '2024-02-11',
-      lessons: 28,
-      duration: '10 hours',
-      thumbnail: 'https://images.pexels.com/photos/590020/pexels-photo-590020.jpeg?w=300&h=200&fit=crop',
-      description: 'Learn data science fundamentals using Python, pandas, and machine learning libraries.'
-    }
-  ];
+  const [courses, setCourses] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchCourses = async () => {
+      try {
+        const response = await apiService.getCourses();
+        if (response.success && response.data) {
+          setCourses(response.data);
+        }
+      } catch (error) {
+        console.error('Failed to load courses:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchCourses();
+  }, []);
 
   const categories = ['all', 'Programming', 'Design', 'Marketing', 'Data Science', 'Business'];
   const statuses = ['all', 'published', 'draft', 'under_review', 'suspended'];
@@ -142,10 +52,10 @@ const AdminCoursesPage: React.FC = () => {
 
   const filteredCourses = courses.filter(course => {
     const matchesSearch = course.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         course.instructor.toLowerCase().includes(searchTerm.toLowerCase());
+      course.instructor.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = filterCategory === 'all' || course.category === filterCategory;
     const matchesStatus = filterStatus === 'all' || course.status === filterStatus;
-    
+
     return matchesSearch && matchesCategory && matchesStatus;
   });
 
@@ -176,10 +86,10 @@ const AdminCoursesPage: React.FC = () => {
   return (
     <div className="flex h-screen bg-gray-50">
       <Sidebar userRole={user?.role || 'admin'} />
-      
+
       <div className="flex-1 flex flex-col overflow-hidden lg:ml-0">
         <Navbar />
-        
+
         <main className="flex-1 overflow-y-auto p-6">
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Course Management</h1>
@@ -346,7 +256,7 @@ const AdminCoursesPage: React.FC = () => {
                       </button>
                     </div>
                   )}
-                  
+
                   {course.status === 'published' && (
                     <div className="flex space-x-2">
                       <button

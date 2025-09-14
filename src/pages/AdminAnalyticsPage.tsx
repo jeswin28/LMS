@@ -1,92 +1,50 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { TrendingUp, Users, DollarSign, BookOpen, Calendar, Download } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import Navbar from '../components/Navbar';
 import Card from '../components/Card';
 import { useUser } from '../context/UserContext';
+import apiService from '../services/api';
 
 const AdminAnalyticsPage: React.FC = () => {
   const { user } = useUser();
   const [dateRange, setDateRange] = useState('30d');
 
-  // Mock analytics data
-  const stats = {
-    totalRevenue: 125680,
-    revenueGrowth: 23.5,
-    totalUsers: 2547,
-    userGrowth: 12.3,
-    activeCourses: 124,
-    courseGrowth: 8.1,
-    completionRate: 78.5,
-    completionGrowth: 5.2
-  };
+  const [stats, setStats] = useState({
+    totalRevenue: 0,
+    revenueGrowth: 0,
+    totalUsers: 0,
+    userGrowth: 0,
+    activeCourses: 0,
+    courseGrowth: 0,
+    completionRate: 0,
+    completionGrowth: 0
+  });
 
-  const revenueData = [
-    { month: 'Jan', revenue: 8500, users: 180 },
-    { month: 'Feb', revenue: 12300, users: 220 },
-    { month: 'Mar', revenue: 15600, users: 280 },
-    { month: 'Apr', revenue: 18900, users: 320 },
-    { month: 'May', revenue: 22100, users: 380 },
-    { month: 'Jun', revenue: 25400, users: 420 }
-  ];
+  const [revenueData, setRevenueData] = useState<any[]>([]);
+  const [topCourses, setTopCourses] = useState<any[]>([]);
+  const [userActivity, setUserActivity] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const topCourses = [
-    {
-      id: 1,
-      title: 'React Development Fundamentals',
-      instructor: 'Dr. Sarah Johnson',
-      students: 156,
-      revenue: 15599.44,
-      rating: 4.8,
-      completion: 85
-    },
-    {
-      id: 2,
-      title: 'Node.js Backend Development',
-      instructor: 'Prof. David Miller',
-      students: 203,
-      revenue: 26407.97,
-      rating: 4.7,
-      completion: 78
-    },
-    {
-      id: 3,
-      title: 'Advanced JavaScript Concepts',
-      instructor: 'Michael Chen',
-      students: 89,
-      revenue: 7119.11,
-      rating: 4.9,
-      completion: 92
-    },
-    {
-      id: 4,
-      title: 'Digital Marketing Mastery',
-      instructor: 'Alex Thompson',
-      students: 78,
-      revenue: 5459.22,
-      rating: 4.6,
-      completion: 73
-    },
-    {
-      id: 5,
-      title: 'UI/UX Design Principles',
-      instructor: 'Emily Rodriguez',
-      students: 45,
-      revenue: 4049.55,
-      rating: 4.8,
-      completion: 81
-    }
-  ];
+  useEffect(() => {
+    const fetchAnalytics = async () => {
+      try {
+        const response = await apiService.getAdminAnalytics();
+        if (response.success && response.data) {
+          setStats(response.data.stats || {});
+          setRevenueData(response.data.revenueData || []);
+          setTopCourses(response.data.topCourses || []);
+          setUserActivity(response.data.userActivity || []);
+        }
+      } catch (error) {
+        console.error('Failed to load analytics:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-  const userActivity = [
-    { day: 'Mon', active: 1250, new: 45 },
-    { day: 'Tue', active: 1380, new: 52 },
-    { day: 'Wed', active: 1420, new: 38 },
-    { day: 'Thu', active: 1560, new: 67 },
-    { day: 'Fri', active: 1680, new: 73 },
-    { day: 'Sat', active: 1200, new: 28 },
-    { day: 'Sun', active: 980, new: 22 }
-  ];
+    fetchAnalytics();
+  }, []);
 
   const categoryPerformance = [
     { category: 'Programming', courses: 45, students: 1250, revenue: 87500 },
@@ -114,10 +72,10 @@ const AdminAnalyticsPage: React.FC = () => {
   return (
     <div className="flex h-screen bg-gray-50">
       <Sidebar userRole={user?.role || 'admin'} />
-      
+
       <div className="flex-1 flex flex-col overflow-hidden lg:ml-0">
         <Navbar />
-        
+
         <main className="flex-1 overflow-y-auto p-6">
           <div className="flex justify-between items-center mb-8">
             <div>

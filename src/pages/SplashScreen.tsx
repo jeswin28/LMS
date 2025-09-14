@@ -22,19 +22,21 @@ const SplashScreen: React.FC = () => {
             <span className="text-emerald-600">Build What Lasts.</span>
           </h1>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            Transform your learning journey with Nexfern Academy's comprehensive courses, 
+            Transform your learning journey with Nexfern Academy's comprehensive courses,
             expert instruction, and hands-on projects.
           </p>
         </div>
 
-        {/* CTA Button */}
-        <button
-          onClick={() => navigate('/login')}
-          className="inline-flex items-center space-x-2 bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-4 rounded-xl font-semibold text-lg transition-colors shadow-lg hover:shadow-xl"
-        >
-          <span>Get Started</span>
-          <ArrowRight className="h-5 w-5" />
-        </button>
+        {/* CTA Buttons */}
+        <div className="flex justify-center">
+          <button
+            onClick={() => navigate('/login')}
+            className="inline-flex items-center space-x-2 bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-4 rounded-xl font-semibold text-lg transition-colors shadow-lg hover:shadow-xl"
+          >
+            <span>Sign In</span>
+            <ArrowRight className="h-5 w-5" />
+          </button>
+        </div>
 
         {/* Features */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-16 max-w-4xl mx-auto">

@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Download, Eye, MessageSquare, CheckCircle, Clock, AlertCircle } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import Navbar from '../components/Navbar';
 import Card from '../components/Card';
 import Modal from '../components/Modal';
 import { useUser } from '../context/UserContext';
+import apiService from '../services/api';
 import { useToast } from '../components/ToastProvider';
 
 const SubmissionsPage: React.FC = () => {
@@ -16,86 +17,25 @@ const SubmissionsPage: React.FC = () => {
   const [feedback, setFeedback] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
 
-  const submissions = [
-    {
-      id: 1,
-      studentName: 'Alice Johnson',
-      studentEmail: 'alice@example.com',
-      assignmentTitle: 'React Component Design',
-      courseName: 'React Development Fundamentals',
-      submittedAt: '2024-02-10 14:30',
-      status: 'pending',
-      fileUrl: '#',
-      fileName: 'react-components.zip',
-      fileSize: '2.5 MB',
-      submissionText: 'I have implemented all 5 required components with TypeScript interfaces. The components are fully responsive and include proper error handling.',
-      currentGrade: null,
-      maxPoints: 100
-    },
-    {
-      id: 2,
-      studentName: 'Bob Smith',
-      studentEmail: 'bob@example.com',
-      assignmentTitle: 'API Integration Project',
-      courseName: 'Advanced JavaScript Concepts',
-      submittedAt: '2024-02-09 16:45',
-      status: 'graded',
-      fileUrl: '#',
-      fileName: 'weather-app.zip',
-      fileSize: '5.2 MB',
-      submissionText: 'Weather application with OpenWeatherMap API integration. Includes error handling and 5-day forecast.',
-      currentGrade: 92,
-      maxPoints: 100,
-      feedback: 'Excellent work! Great error handling and clean code structure. The UI is intuitive and responsive.'
-    },
-    {
-      id: 3,
-      studentName: 'Carol Davis',
-      studentEmail: 'carol@example.com',
-      assignmentTitle: 'Database Schema Design',
-      courseName: 'Node.js Backend Development',
-      submittedAt: '2024-02-08 10:15',
-      status: 'pending',
-      fileUrl: '#',
-      fileName: 'ecommerce-schema.sql',
-      fileSize: '1.8 MB',
-      submissionText: 'Complete database schema for e-commerce platform with proper relationships and constraints.',
-      currentGrade: null,
-      maxPoints: 120
-    },
-    {
-      id: 4,
-      studentName: 'David Brown',
-      studentEmail: 'david@example.com',
-      assignmentTitle: 'UI/UX Case Study',
-      courseName: 'UI/UX Design Principles',
-      submittedAt: '2024-02-07 09:20',
-      status: 'graded',
-      fileUrl: '#',
-      fileName: 'ux-audit-report.pdf',
-      fileSize: '8.1 MB',
-      submissionText: 'Comprehensive UX audit of Instagram mobile app with wireframes and improvement suggestions.',
-      currentGrade: 88,
-      maxPoints: 90,
-      feedback: 'Good analysis and clear recommendations. Could have included more detailed user journey mapping.'
-    },
-    {
-      id: 5,
-      studentName: 'Emily Chen',
-      studentEmail: 'emily@example.com',
-      assignmentTitle: 'React Component Design',
-      courseName: 'React Development Fundamentals',
-      submittedAt: '2024-02-06 13:45',
-      status: 'needs_revision',
-      fileUrl: '#',
-      fileName: 'components-v1.zip',
-      fileSize: '1.9 MB',
-      submissionText: 'Initial implementation of React components. Some TypeScript interfaces may need refinement.',
-      currentGrade: 75,
-      maxPoints: 100,
-      feedback: 'Good start! Please add proper TypeScript interfaces for all props and improve error handling in the Modal component.'
-    }
-  ];
+  const [submissions, setSubmissions] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchSubmissions = async () => {
+      try {
+        const response = await apiService.getSubmissions();
+        if (response.success && response.data) {
+          setSubmissions(response.data);
+        }
+      } catch (error) {
+        console.error('Failed to load submissions:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchSubmissions();
+  }, []);
 
   const handleGradeSubmission = () => {
     if (grade && feedback.trim()) {
@@ -150,10 +90,10 @@ const SubmissionsPage: React.FC = () => {
   return (
     <div className="flex h-screen bg-gray-50">
       <Sidebar userRole={user?.role || 'instructor'} />
-      
+
       <div className="flex-1 flex flex-col overflow-hidden lg:ml-0">
         <Navbar />
-        
+
         <main className="flex-1 overflow-y-auto p-6">
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Student Submissions</h1>
@@ -242,7 +182,7 @@ const SubmissionsPage: React.FC = () => {
                         <span className="capitalize">{submission.status.replace('_', ' ')}</span>
                       </span>
                     </div>
-                    
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
                       <div>
                         <p className="text-sm text-gray-600">Student: <span className="font-medium text-gray-900">{submission.studentName}</span></p>
@@ -285,7 +225,7 @@ const SubmissionsPage: React.FC = () => {
                       <Eye className="h-4 w-4" />
                       <span>View Details</span>
                     </button>
-                    
+
                     <a
                       href={submission.fileUrl}
                       className="flex items-center space-x-2 px-4 py-2 text-blue-600 border border-blue-600 rounded-lg hover:bg-blue-50 transition-colors"
@@ -330,8 +270,8 @@ const SubmissionsPage: React.FC = () => {
                   <MessageSquare className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                   <h3 className="text-lg font-medium text-gray-900 mb-2">No submissions found</h3>
                   <p className="text-gray-600">
-                    {filterStatus === 'all' 
-                      ? 'No student submissions yet.' 
+                    {filterStatus === 'all'
+                      ? 'No student submissions yet.'
                       : `No submissions with status "${filterStatus.replace('_', ' ')}".`
                     }
                   </p>
