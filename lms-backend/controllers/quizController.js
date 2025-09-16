@@ -34,16 +34,23 @@ exports.getQuizzes = asyncHandler(async (req, res, next) => {
 
   // For students, we might want to also return their best score/attempts
   if (req.user.role === 'student') {
-    const quizzesWithStudentData = await Promise.all(quizzes.map(async (quiz) => {
-      const bestAttempt = await QuizAttempt.findOne({ quiz: quiz._id, student: req.user.id })
-        .sort('-percentageScore');
-      const attemptsCount = await QuizAttempt.countDocuments({ quiz: quiz._id, student: req.user.id });
+    const quizIds = quizzes.map(q => q._id);
+    const attempts = await QuizAttempt.find({ quiz: { $in: quizIds }, student: req.user.id });
+    const statsByQuiz = attempts.reduce((acc, a) => {
+      const id = a.quiz.toString();
+      if (!acc[id]) acc[id] = { attempts: 0, best: null };
+      acc[id].attempts += 1;
+      if (acc[id].best === null || a.percentageScore > acc[id].best) acc[id].best = a.percentageScore;
+      return acc;
+    }, {});
+    const quizzesWithStudentData = quizzes.map((quiz) => {
+      const s = statsByQuiz[quiz._id.toString()] || { attempts: 0, best: null };
       return {
         ...quiz.toJSON(),
-        bestScore: bestAttempt ? bestAttempt.percentageScore : null,
-        attempts: attemptsCount,
+        bestScore: s.best,
+        attempts: s.attempts,
       };
-    }));
+    });
     return res.status(200).json({
       success: true,
       count: quizzesWithStudentData.length,

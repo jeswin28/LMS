@@ -5,6 +5,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const cookieParser = require('cookie-parser');
+const csrf = require('csurf');
 const { connectDB } = require('./config/db');
 const path = require('path');
 const errorHandler = require('./middlewares/errorMiddleware');
@@ -29,6 +30,15 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Cookie parser
 app.use(cookieParser());
+
+// CSRF protection (relies on cookies)
+const csrfProtection = csrf({ cookie: true });
+app.use(csrfProtection);
+
+// Endpoint to provide CSRF token to clients
+app.get('/api/csrf-token', (req, res) => {
+  return res.json({ csrfToken: req.csrfToken() });
+});
 
 // Enable CORS
 app.use(cors({

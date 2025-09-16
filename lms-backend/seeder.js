@@ -11,6 +11,12 @@ const adminData = {
     status: 'active',
 };
 
+if (!adminData.name || !adminData.email || !adminData.password) {
+    console.error('Missing admin credentials. Provide ADMIN_NAME, ADMIN_EMAIL, and ADMIN_PASSWORD as environment variables when running this script.');
+    console.error('Example: ADMIN_NAME="Admin" ADMIN_EMAIL="admin@example.com" ADMIN_PASSWORD="strongpassword" node seeder.js');
+    process.exit(1);
+}
+
 const importData = async () => {
     try {
         await sequelize.sync();

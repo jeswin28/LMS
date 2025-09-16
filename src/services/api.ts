@@ -12,6 +12,8 @@ interface ApiResponse<T> {
 }
 
 class ApiService {
+    private csrfToken: string | null = null;
+
     private getAuthHeaders(): HeadersInit {
         const token = localStorage.getItem('token');
         return {
@@ -20,15 +22,32 @@ class ApiService {
         };
     }
 
+    private async ensureCsrfToken(): Promise<string> {
+        if (this.csrfToken) return this.csrfToken;
+        const resp = await fetch(`${API_BASE_URL}/csrf-token`, { credentials: 'include' });
+        const data = await resp.json();
+        const token: string = (data && typeof data.csrfToken === 'string') ? data.csrfToken : '';
+        this.csrfToken = token;
+        return token;
+    }
+
     private async request<T>(
         endpoint: string,
         options: RequestInit = {}
     ): Promise<ApiResponse<T>> {
         const url = `${API_BASE_URL}${endpoint}`;
         const config: RequestInit = {
-            headers: this.getAuthHeaders(),
+            headers: { ...this.getAuthHeaders() },
+            credentials: 'include',
             ...options,
         };
+
+        // Attach CSRF token for state-changing requests
+        const method = (config.method || 'GET').toUpperCase();
+        if (method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS') {
+            const token = await this.ensureCsrfToken();
+            (config.headers as Record<string, string>)['X-CSRF-Token'] = token || '';
+        }
 
         try {
             const response = await fetch(url, config);
@@ -58,31 +77,18 @@ class ApiService {
         });
     }
 
-    async register(userData: {
-        name: string;
-        email: string;
-        password: string;
-        role: string;
-    }): Promise<ApiResponse<any>> {
-        return this.request('/auth/register', {
-            method: 'POST',
-            body: JSON.stringify(userData),
-        });
-    }
-
     async login(credentials: {
         email: string;
         password: string;
-        role: string;
     }): Promise<ApiResponse<any>> {
-        return this.request('/auth/login', {
+        return this.request('/users/login', {
             method: 'POST',
             body: JSON.stringify(credentials),
         });
     }
 
     async logout(): Promise<ApiResponse<any>> {
-        return this.request('/auth/logout', {
+        return this.request('/users/logout', {
             method: 'GET',
         });
     }
