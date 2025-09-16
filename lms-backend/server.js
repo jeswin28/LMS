@@ -3,6 +3,7 @@ const { connectDB } = require('./config/db');
 const app = require('./app');
 const { cleanEnv, str, num } = require('envalid');
 const winston = require('winston');
+const path = require('path');
 
 // Logger setup
 const logger = winston.createLogger({
@@ -12,12 +13,13 @@ const logger = winston.createLogger({
     winston.format.json()
   ),
   transports: [
+    // File transports for production debugging and audits
+    new winston.transports.File({ filename: path.join('logs', 'error.log'), level: 'error' }),
+    new winston.transports.File({ filename: path.join('logs', 'combined.log') }),
+    // Console transport for dev visibility
     new winston.transports.Console({
       format: winston.format.simple(),
     }),
-    ...(process.env.NODE_ENV === 'production'
-      ? [new winston.transports.File({ filename: 'logs/app.log' })]
-      : []),
   ],
 });
 
