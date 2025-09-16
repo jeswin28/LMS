@@ -15,33 +15,73 @@ This is a production-ready Learning Management System (LMS) backend built with N
 - PDF certificate generation for completed courses
 - Secure, production-ready configuration
 
-## API Endpoints
-- `/api/users/login` - User login
-- `/api/users/register` - Instructor registration
-- `/api/users/admin/create` - Admin creates user
-- `/api/users/profile` - Get user profile
-- `/api/courses` - List approved courses
-- `/api/courses/:id` - Get course details
-- `/api/courses/admin/pending` - List pending courses (admin)
-- `/api/courses/:id/approve` - Approve course (admin)
-- `/api/courses/:id` (PUT/DELETE) - Update/delete course (instructor/admin)
-- `/api/courses/:courseId/lessons` - Add lesson (instructor)
-- `/api/lessons/:lessonId` - Get/update/delete lesson
-- `/api/enrollments` - Enroll in course (student)
-- `/api/enrollments/my-courses` - List enrolled courses (student)
-- `/api/enrollments/progress` - Mark lesson complete (student)
-- `/api/courses/:courseId/assignments` - Create assignment (instructor)
-- `/api/assignments/:assignmentId` - Update/delete assignment (instructor)
-- `/api/assignments/:assignmentId/submit` - Submit assignment (student)
-- `/api/assignments/:assignmentId/submissions` - View submissions (instructor)
-- `/api/submissions/:submissionId/grade` - Grade submission (instructor)
-- `/api/courses/:courseId/quizzes` - Create quiz (instructor)
-- `/api/quizzes/:quizId/questions` - Add question (instructor)
-- `/api/quizzes/:quizId/submit` - Submit quiz (student)
-- `/api/quizzes/:quizId/attempts` - View attempts (instructor)
-- `/api/courses/:courseId/discussions` - Create/view posts (enrolled)
-- `/api/discussions/:postId/comments` - Add comment (enrolled)
-- `/api/enrollments/:enrollmentId/certificate` - Download certificate (student)
+## API Endpoints (Detailed)
+
+Authentication (`/api/auth`):
+- `POST /register` (Public) — Only allows `role: instructor` self-register
+  - Body: `{ name, email, password, role: 'instructor' }`
+  - 201: `{ success, token, user }`
+- `POST /login` (Public)
+  - Body: `{ email, password, role: 'student'|'instructor'|'admin' }`
+  - 200: `{ success, token, user }`
+- `GET /me` (Protected) — Current user
+  - 200: `{ success, data: user }`
+- `GET /logout` (Protected)
+  - 200: `{ success: true }`
+- `PUT /updatedetails` (Protected)
+  - Body: partial profile fields
+- `PUT /updatepassword` (Protected)
+  - Body: `{ currentPassword, newPassword }`
+- `POST /forgotpassword` (Public)
+  - Body: `{ email }`
+- `PUT /resetpassword/:resettoken` (Public)
+  - Body: `{ password }`
+
+Users (`/api/users`):
+- `POST /login` — Alternate login used by some clients
+- `POST /admin/create` (Admin)
+  - Body: `{ name, email, password, role }`
+- `GET /profile` (Protected)
+- `PUT /me` (Protected) — Update own profile
+
+Courses (`/api/courses`):
+- `GET /` (Public) — List approved courses
+- `POST /` (Instructor/Admin) — Create course
+  - Body: `{ title, description, category, level, price, ... }`
+- `GET /my-courses` (Instructor)
+- `GET /admin/pending` (Admin)
+- `PUT /:id/approve` (Admin)
+- `GET /:id` (Public)
+- `PUT /:id` (Instructor owner/Admin)
+- `DELETE /:id` (Instructor owner/Admin)
+
+Lessons:
+- `POST /api/courses/:id/lessons` (Instructor/Admin) — Add lesson to course
+- Additional lesson routes exist for updating resources/videos
+
+Enrollments (`/api/enrollments`):
+- `POST /` (Student) — Enroll in course
+- `GET /my-courses` (Student) — List enrolled courses
+
+Assignments (`/api/assignments`):
+- `POST /api/courses/:courseId/assignments` (Instructor)
+- `PUT /:assignmentId` (Instructor)
+- `DELETE /:assignmentId` (Instructor)
+- `POST /:assignmentId/submit` (Student)
+- `GET /:assignmentId/submissions` (Instructor)
+
+Quizzes (`/api/quizzes`):
+- `POST /api/courses/:courseId/quizzes` (Instructor)
+- `POST /:quizId/questions` (Instructor)
+- `POST /:quizId/submit` (Student)
+- `GET /:quizId/attempts` (Instructor)
+
+Discussion (`/api/forum`):
+- `GET /` and `POST /` — Course forum posts
+- `POST /:postId/comments` — Comments
+
+Certificates (`/api/certificates`):
+- `GET /:enrollmentId` (Student) — Download certificate
 
 ## Deployment Notes
 - Ensure PostgreSQL is running and accessible.

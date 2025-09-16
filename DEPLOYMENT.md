@@ -31,23 +31,42 @@ npm run dev
 
 ### Environment Variables
 
-Create production environment file:
-```env
-NODE_ENV=production
+Create your environment file(s). In development, set variables in `lms-backend/config/config.env` and a root `.env` for the frontend. In production, export vars or use a secrets manager.
+
+Required variables (backend):
+```
+NODE_ENV=production | development | test
 PORT=5000
-DATABASE_URL=postgresql://username:password@host:port/database
+
+# Development DB (used when NODE_ENV !== production)
+DB_HOST=localhost
+DB_NAME=lms_db
+DB_USERNAME=postgres
+DB_PASSWORD=postgres
+
+# Production DB (preferred)
+DATABASE_URL=postgresql://username:password@host:5432/database
+
+# Security
 JWT_SECRET=your_super_secure_jwt_secret
-JWT_EXPIRE=7d
+JWT_COOKIE_EXPIRE=7
 MAX_FILE_UPLOAD=50000000
 FRONTEND_URL=https://yourdomain.com
+```
+
+Frontend (root `.env`):
+```
+VITE_API_BASE_URL=http://localhost:5000/api
 ```
 
 ### Database Setup
 
 1. Create PostgreSQL database
 2. Update connection string in config
-3. Run migrations: `npm run db:migrate`
-4. Seed admin user: `npm run data:import`
+3. Run migrations: `cd lms-backend && NODE_ENV=production npm run db:migrate`
+4. Seed admin user securely:
+   - `ADMIN_NAME`, `ADMIN_EMAIL`, `ADMIN_PASSWORD` provided via env to `seeder.js` (do not hardcode)
+   - Example: `ADMIN_NAME="Admin" ADMIN_EMAIL="admin@example.com" ADMIN_PASSWORD="Str0ng!Pass" node seeder.js`
 
 ### File Permissions
 
@@ -99,7 +118,7 @@ npm install -g pm2
 
 # Start backend with PM2
 cd lms-backend
-pm2 start server.js --name "lms-backend"
+pm2 start server.js --name "lms-backend" --update-env
 
 # Save PM2 configuration
 pm2 save

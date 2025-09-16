@@ -7,7 +7,9 @@ dotenv.config({ path: './config/config.env' });
 
 let sequelize;
 
-if (process.env.NODE_ENV === 'production') {
+if (process.env.NODE_ENV === 'test') {
+  sequelize = new Sequelize({ dialect: 'sqlite', storage: ':memory:', logging: false });
+} else if (process.env.NODE_ENV === 'production') {
   sequelize = new Sequelize(process.env.DATABASE_URL, {
     dialect: 'postgres',
     logging: false,
@@ -36,9 +38,9 @@ const connectDB = async () => {
     await sequelize.authenticate();
     console.log('PostgreSQL Connected: Database connection established successfully.');
 
-    // Sync all models with database (in development)
-    if (process.env.NODE_ENV === 'development') {
-      await sequelize.sync({ alter: true });
+    // Sync all models with database (in development or test)
+    if (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test') {
+      await sequelize.sync({ alter: process.env.NODE_ENV === 'development' });
       console.log('Database synchronized.');
     }
   } catch (error) {

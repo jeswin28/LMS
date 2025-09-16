@@ -80,8 +80,9 @@ class ApiService {
     async login(credentials: {
         email: string;
         password: string;
+        role: 'student' | 'instructor' | 'admin';
     }): Promise<ApiResponse<any>> {
-        return this.request('/users/login', {
+        return this.request('/auth/login', {
             method: 'POST',
             body: JSON.stringify(credentials),
         });

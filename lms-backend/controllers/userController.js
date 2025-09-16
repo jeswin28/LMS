@@ -111,6 +111,33 @@ exports.getUserProfile = asyncHandler(async (req, res, next) => {
   });
 });
 
+// @desc    Update current user profile
+// @route   PUT /api/users/me
+// @access  Private
+exports.updateUserProfile = asyncHandler(async (req, res, next) => {
+  const user = await User.findByPk(req.user.id);
+  if (!user) {
+    return next(new ErrorResponse('User not found', 404));
+  }
+  const editable = ['name', 'email', 'phone', 'location', 'bio'];
+  for (const key of editable) {
+    if (Object.prototype.hasOwnProperty.call(req.body, key)) {
+      user[key] = req.body[key];
+    }
+  }
+  await user.save();
+  res.status(200).json({
+    success: true,
+    user: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      status: user.status,
+    },
+  });
+});
+
 // @desc      Update user (by admin)
 // @route     PUT /api/users/:id
 // @access    Private/Admin
