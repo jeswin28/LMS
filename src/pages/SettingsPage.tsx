@@ -1,22 +1,25 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Save, Bell, Shield, Palette, Globe, Download, Trash2 } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import Navbar from '../components/Navbar';
 import Card from '../components/Card';
 import { useUser } from '../context/UserContext';
 import { useToast } from '../components/ToastProvider';
+import apiService from '../services/api';
 
 const SettingsPage: React.FC = () => {
   const { user } = useUser();
   const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState('general');
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
 
   const [settings, setSettings] = useState({
     // General Settings
     language: 'en',
     timezone: 'UTC-5',
     dateFormat: 'MM/DD/YYYY',
-    
+
     // Notification Settings
     emailNotifications: true,
     pushNotifications: true,
@@ -24,18 +27,18 @@ const SettingsPage: React.FC = () => {
     gradeNotifications: true,
     courseUpdates: true,
     marketingEmails: false,
-    
+
     // Privacy Settings
     profileVisibility: 'public',
     showProgress: true,
     showAchievements: true,
     allowMessages: true,
-    
+
     // Appearance Settings
     theme: 'light',
     fontSize: 'medium',
     reducedMotion: false,
-    
+
     // Learning Preferences
     autoplay: true,
     playbackSpeed: 1,
@@ -43,24 +46,215 @@ const SettingsPage: React.FC = () => {
     videoQuality: 'auto'
   });
 
+  // Load settings from API or localStorage on component mount
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        setIsLoading(true);
+
+        // Try to load from API first
+        const response = await apiService.getUserSettings();
+        if (response.success && response.data) {
+          setSettings(prev => ({ ...prev, ...response.data }));
+        } else {
+          // Fallback to localStorage
+          const savedSettings = localStorage.getItem('userSettings');
+          if (savedSettings) {
+            const parsedSettings = JSON.parse(savedSettings);
+            setSettings(prev => ({ ...prev, ...parsedSettings }));
+          } else {
+            // Set default timezone based on user's location
+            const defaultTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+            const timezoneOffset = new Date().getTimezoneOffset();
+            const timezoneString = `UTC${timezoneOffset <= 0 ? '+' : ''}${-timezoneOffset / 60}`;
+
+            setSettings(prev => ({
+              ...prev,
+              timezone: timezoneString
+            }));
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load settings:', error);
+        // Fallback to localStorage
+        const savedSettings = localStorage.getItem('userSettings');
+        if (savedSettings) {
+          const parsedSettings = JSON.parse(savedSettings);
+          setSettings(prev => ({ ...prev, ...parsedSettings }));
+        } else {
+          // Set default timezone based on user's location
+          const defaultTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+          const timezoneOffset = new Date().getTimezoneOffset();
+          const timezoneString = `UTC${timezoneOffset <= 0 ? '+' : ''}${-timezoneOffset / 60}`;
+
+          setSettings(prev => ({
+            ...prev,
+            timezone: timezoneString
+          }));
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadSettings();
+  }, []);
+
+  // Apply settings changes immediately to localStorage and DOM
+  useEffect(() => {
+    if (!isLoading) {
+      // Save to localStorage
+      localStorage.setItem('userSettings', JSON.stringify(settings));
+
+      // Apply theme changes
+      applyTheme(settings.theme);
+
+      // Apply font size changes
+      applyFontSize(settings.fontSize);
+
+      // Apply reduced motion
+      applyReducedMotion(settings.reducedMotion);
+
+      // Apply learning preferences
+      applyLearningPreferences(settings);
+    }
+  }, [settings, isLoading]);
+
+  const applyLearningPreferences = (settings: any) => {
+    // Store learning preferences for video components to use
+    localStorage.setItem('learningPreferences', JSON.stringify({
+      autoplay: settings.autoplay,
+      playbackSpeed: settings.playbackSpeed,
+      subtitles: settings.subtitles,
+      videoQuality: settings.videoQuality
+    }));
+  };
+
+  // Helper functions to apply settings changes
+  const applyTheme = (theme: string) => {
+    const root = document.documentElement;
+    if (theme === 'dark') {
+      root.classList.add('dark');
+    } else if (theme === 'light') {
+      root.classList.remove('dark');
+    } else if (theme === 'auto') {
+      // Auto theme based on system preference
+      if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        root.classList.add('dark');
+      } else {
+        root.classList.remove('dark');
+      }
+    }
+  };
+
+  const applyFontSize = (fontSize: string) => {
+    const root = document.documentElement;
+    root.setAttribute('data-font-size', fontSize);
+  };
+
+  const applyReducedMotion = (reducedMotion: boolean) => {
+    const root = document.documentElement;
+    if (reducedMotion) {
+      root.classList.add('reduce-motion');
+    } else {
+      root.classList.remove('reduce-motion');
+    }
+  };
+
   const handleSettingChange = (key: string, value: any) => {
     setSettings(prev => ({
       ...prev,
       [key]: value
     }));
+
+    // Handle special cases
+    if (key === 'pushNotifications' && value === true) {
+      requestNotificationPermission();
+    }
   };
 
-  const handleSave = () => {
-    showToast('success', 'Settings saved successfully!');
+  const requestNotificationPermission = async () => {
+    if ('Notification' in window) {
+      const permission = await Notification.requestPermission();
+      if (permission === 'granted') {
+        showToast('success', 'Push notifications enabled!');
+      } else {
+        showToast('error', 'Push notifications blocked. Please enable them in your browser settings.');
+        setSettings(prev => ({ ...prev, pushNotifications: false }));
+      }
+    } else {
+      showToast('error', 'Push notifications are not supported in this browser.');
+      setSettings(prev => ({ ...prev, pushNotifications: false }));
+    }
   };
 
-  const handleExportData = () => {
-    showToast('info', 'Data export started. You will receive an email when ready.');
+  const handleSave = async () => {
+    try {
+      setIsSaving(true);
+
+      // Save to API
+      const response = await apiService.updateUserSettings(settings);
+      if (response.success) {
+        showToast('success', 'Settings saved successfully!');
+      } else {
+        showToast('error', 'Failed to save settings. Changes saved locally.');
+      }
+    } catch (error) {
+      console.error('Failed to save settings:', error);
+      showToast('error', 'Failed to save settings. Changes saved locally.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleExportData = async () => {
+    try {
+      showToast('info', 'Preparing data export...');
+      const response = await apiService.exportUserData();
+      if (response.success) {
+        showToast('success', 'Data export completed! Check your email for the download link.');
+      } else {
+        showToast('error', 'Failed to export data. Please try again.');
+      }
+    } catch (error) {
+      console.error('Failed to export data:', error);
+      showToast('error', 'Failed to export data. Please try again.');
+    }
   };
 
   const handleDeleteAccount = () => {
     if (window.confirm('Are you sure you want to delete your account? This action cannot be undone.')) {
       showToast('error', 'Account deletion initiated. Please check your email for confirmation.');
+    }
+  };
+
+  const handleResetToDefaults = () => {
+    if (window.confirm('Are you sure you want to reset all settings to their default values?')) {
+      const defaultSettings = {
+        language: 'en',
+        timezone: 'UTC-5',
+        dateFormat: 'MM/DD/YYYY',
+        emailNotifications: true,
+        pushNotifications: true,
+        assignmentReminders: true,
+        gradeNotifications: true,
+        courseUpdates: true,
+        marketingEmails: false,
+        profileVisibility: 'public',
+        showProgress: true,
+        showAchievements: true,
+        allowMessages: true,
+        theme: 'light',
+        fontSize: 'medium',
+        reducedMotion: false,
+        autoplay: true,
+        playbackSpeed: 1,
+        subtitles: false,
+        videoQuality: 'auto'
+      };
+
+      setSettings(defaultSettings);
+      showToast('success', 'Settings reset to defaults!');
     }
   };
 
@@ -73,6 +267,15 @@ const SettingsPage: React.FC = () => {
   ];
 
   const renderTabContent = () => {
+    if (isLoading) {
+      return (
+        <div className="flex items-center justify-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
+          <span className="ml-3 text-gray-600">Loading settings...</span>
+        </div>
+      );
+    }
+
     switch (activeTab) {
       case 'general':
         return (
@@ -96,7 +299,7 @@ const SettingsPage: React.FC = () => {
                     <option value="zh">Chinese</option>
                   </select>
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Timezone
@@ -114,7 +317,7 @@ const SettingsPage: React.FC = () => {
                     <option value="UTC+1">Central European Time (UTC+1)</option>
                   </select>
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Date Format
@@ -189,7 +392,7 @@ const SettingsPage: React.FC = () => {
                     <option value="private">Private - Only you can see your profile</option>
                   </select>
                 </div>
-                
+
                 <div className="space-y-4">
                   {[
                     { key: 'showProgress', label: 'Show Learning Progress', description: 'Display your course progress on your profile' },
@@ -237,18 +440,17 @@ const SettingsPage: React.FC = () => {
                       <button
                         key={theme.value}
                         onClick={() => handleSettingChange('theme', theme.value)}
-                        className={`p-3 border rounded-lg text-center transition-colors ${
-                          settings.theme === theme.value
-                            ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
-                            : 'border-gray-300 hover:bg-gray-50'
-                        }`}
+                        className={`p-3 border rounded-lg text-center transition-colors ${settings.theme === theme.value
+                          ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
+                          : 'border-gray-300 hover:bg-gray-50'
+                          }`}
                       >
                         {theme.label}
                       </button>
                     ))}
                   </div>
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Font Size
@@ -263,7 +465,7 @@ const SettingsPage: React.FC = () => {
                     <option value="large">Large</option>
                   </select>
                 </div>
-                
+
                 <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                   <div>
                     <h4 className="font-medium text-gray-900">Reduced Motion</h4>
@@ -305,7 +507,7 @@ const SettingsPage: React.FC = () => {
                     <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-emerald-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
                   </label>
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Default Playback Speed
@@ -323,7 +525,7 @@ const SettingsPage: React.FC = () => {
                     <option value={2}>2x</option>
                   </select>
                 </div>
-                
+
                 <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                   <div>
                     <h4 className="font-medium text-gray-900">Subtitles</h4>
@@ -339,7 +541,7 @@ const SettingsPage: React.FC = () => {
                     <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-emerald-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
                   </label>
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Video Quality
@@ -369,10 +571,10 @@ const SettingsPage: React.FC = () => {
   return (
     <div className="flex h-screen bg-gray-50">
       <Sidebar userRole={user?.role || 'student'} />
-      
+
       <div className="flex-1 flex flex-col overflow-hidden lg:ml-0">
         <Navbar />
-        
+
         <main className="flex-1 overflow-y-auto p-6">
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Settings</h1>
@@ -388,11 +590,10 @@ const SettingsPage: React.FC = () => {
                     <button
                       key={tab.id}
                       onClick={() => setActiveTab(tab.id)}
-                      className={`w-full flex items-center space-x-3 px-4 py-3 text-left rounded-lg transition-colors ${
-                        activeTab === tab.id
-                          ? 'bg-emerald-50 text-emerald-700 border-r-2 border-emerald-500'
-                          : 'text-gray-600 hover:bg-gray-50 hover:text-gray-800'
-                      }`}
+                      className={`w-full flex items-center space-x-3 px-4 py-3 text-left rounded-lg transition-colors ${activeTab === tab.id
+                        ? 'bg-emerald-50 text-emerald-700 border-r-2 border-emerald-500'
+                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-800'
+                        }`}
                     >
                       <tab.icon className="h-5 w-5" />
                       <span className="font-medium">{tab.label}</span>
@@ -406,18 +607,29 @@ const SettingsPage: React.FC = () => {
             <div className="lg:col-span-3">
               <Card>
                 {renderTabContent()}
-                
+
                 <div className="mt-8 pt-6 border-t border-gray-200">
                   <div className="flex justify-between items-center">
                     <button
                       onClick={handleSave}
-                      className="flex items-center space-x-2 bg-emerald-600 text-white px-6 py-2 rounded-lg hover:bg-emerald-700 transition-colors"
+                      disabled={isSaving}
+                      className={`flex items-center space-x-2 px-6 py-2 rounded-lg transition-colors ${isSaving
+                          ? 'bg-gray-400 text-white cursor-not-allowed'
+                          : 'bg-emerald-600 text-white hover:bg-emerald-700'
+                        }`}
                     >
                       <Save className="h-4 w-4" />
-                      <span>Save Changes</span>
+                      <span>{isSaving ? 'Saving...' : 'Save Changes'}</span>
                     </button>
-                    
+
                     <div className="flex space-x-3">
+                      <button
+                        onClick={handleResetToDefaults}
+                        className="flex items-center space-x-2 text-orange-600 border border-orange-300 px-4 py-2 rounded-lg hover:bg-orange-50 transition-colors"
+                      >
+                        <span>Reset to Defaults</span>
+                      </button>
+
                       <button
                         onClick={handleExportData}
                         className="flex items-center space-x-2 text-gray-600 border border-gray-300 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors"
@@ -425,14 +637,17 @@ const SettingsPage: React.FC = () => {
                         <Download className="h-4 w-4" />
                         <span>Export Data</span>
                       </button>
-                      
-                      <button
-                        onClick={handleDeleteAccount}
-                        className="flex items-center space-x-2 text-red-600 border border-red-300 px-4 py-2 rounded-lg hover:bg-red-50 transition-colors"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                        <span>Delete Account</span>
-                      </button>
+
+                      {/* Only show delete account for admin users */}
+                      {user?.role === 'admin' && (
+                        <button
+                          onClick={handleDeleteAccount}
+                          className="flex items-center space-x-2 text-red-600 border border-red-300 px-4 py-2 rounded-lg hover:bg-red-50 transition-colors"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          <span>Delete Account</span>
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>

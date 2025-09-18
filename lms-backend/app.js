@@ -21,23 +21,7 @@ if (process.env.NODE_ENV !== 'test') {
     app.use(morgan('combined'));
 }
 
-// Body parsing
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-
-// Cookies
-app.use(cookieParser());
-
-// CSRF protection except in test
-if (process.env.NODE_ENV !== 'test') {
-    const csrfProtection = csrf({ cookie: true });
-    app.use(csrfProtection);
-    app.get('/api/csrf-token', (req, res) => {
-        return res.json({ csrfToken: req.csrfToken() });
-    });
-}
-
-// CORS
+// CORS -- CORRECTED POSITION
 app.use(
     cors({
         origin:
@@ -55,6 +39,22 @@ app.use(
         credentials: true,
     })
 );
+
+// Body parsing
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Cookies
+app.use(cookieParser());
+
+// CSRF protection except in test
+if (process.env.NODE_ENV !== 'test') {
+    const csrfProtection = csrf({ cookie: true });
+    app.use(csrfProtection);
+    app.get('/api/csrf-token', (req, res) => {
+        return res.json({ csrfToken: req.csrfToken() });
+    });
+}
 
 // Static uploads
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));

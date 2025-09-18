@@ -35,6 +35,7 @@ const AdminAnalyticsPage: React.FC = () => {
           setRevenueData(response.data.revenueData || []);
           setTopCourses(response.data.topCourses || []);
           setUserActivity(response.data.userActivity || []);
+          setCategoryPerformance(response.data.categoryPerformance || []);
         }
       } catch (error) {
         console.error('Failed to load analytics:', error);
@@ -46,13 +47,7 @@ const AdminAnalyticsPage: React.FC = () => {
     fetchAnalytics();
   }, []);
 
-  const categoryPerformance = [
-    { category: 'Programming', courses: 45, students: 1250, revenue: 87500 },
-    { category: 'Design', courses: 28, students: 680, revenue: 45200 },
-    { category: 'Marketing', courses: 22, students: 420, revenue: 28800 },
-    { category: 'Data Science', courses: 18, students: 380, revenue: 52600 },
-    { category: 'Business', courses: 11, students: 190, revenue: 15400 }
-  ];
+  const [categoryPerformance, setCategoryPerformance] = useState<any[]>([]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {

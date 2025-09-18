@@ -19,6 +19,12 @@ const QuizzesPage: React.FC = () => {
   const [quizStarted, setQuizStarted] = useState(false);
 
   const [quizzes, setQuizzes] = useState<any[]>([]);
+  const [quizStats, setQuizStats] = useState({
+    totalQuizzes: 0,
+    completed: 0,
+    averageScore: 0,
+    available: 0
+  });
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -27,16 +33,56 @@ const QuizzesPage: React.FC = () => {
         const response = await apiService.getQuizzes();
         if (response.success && response.data) {
           setQuizzes(response.data);
+
+          // Calculate stats from quizzes data
+          const totalQuizzes = response.data.length;
+          const completed = response.data.filter((quiz: any) =>
+            quiz.status === 'completed' || quiz.completed === true
+          ).length;
+          const available = response.data.filter((quiz: any) =>
+            quiz.status === 'available' || quiz.status === 'active'
+          ).length;
+
+          // Calculate average score from completed quizzes
+          const completedQuizzes = response.data.filter((quiz: any) =>
+            quiz.status === 'completed' && quiz.score !== undefined
+          );
+          const averageScore = completedQuizzes.length > 0
+            ? Math.round(completedQuizzes.reduce((sum: number, quiz: any) => sum + quiz.score, 0) / completedQuizzes.length)
+            : 0;
+
+          setQuizStats({
+            totalQuizzes,
+            completed,
+            averageScore,
+            available
+          });
+        } else {
+          setQuizzes([]);
+          setQuizStats({
+            totalQuizzes: 0,
+            completed: 0,
+            averageScore: 0,
+            available: 0
+          });
         }
       } catch (error) {
         console.error('Failed to load quizzes:', error);
+        showToast('error', 'Failed to load quizzes');
+        setQuizzes([]);
+        setQuizStats({
+          totalQuizzes: 0,
+          completed: 0,
+          averageScore: 0,
+          available: 0
+        });
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchQuizzes();
-  }, []);
+  }, [showToast]);
 
   const startQuiz = (quiz: any) => {
     setSelectedQuiz(quiz);
@@ -68,7 +114,18 @@ const QuizzesPage: React.FC = () => {
 
   const submitQuiz = () => {
     const score = Math.floor(Math.random() * 30) + 70; // Mock score
-    showToast('success', `Quiz submitted! Your score: ${score}%`);
+
+    // Show achievement notifications based on score
+    if (score === 100) {
+      showToast('success', `🎉 Perfect Score! You earned the "Perfectionist" achievement!`);
+    } else if (score >= 90) {
+      showToast('success', `🏆 Excellent! You earned the "High Achiever" achievement!`);
+    } else if (score >= 85) {
+      showToast('success', `📈 Great job! You're on track for the "Consistent Performer" achievement!`);
+    } else {
+      showToast('success', `Quiz submitted! Your score: ${score}%`);
+    }
+
     setIsQuizModalOpen(false);
     setQuizStarted(false);
     setSelectedQuiz(null);
@@ -129,7 +186,7 @@ const QuizzesPage: React.FC = () => {
                   <Clock className="h-6 w-6 text-blue-600" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-gray-900">4</p>
+                  <p className="text-2xl font-bold text-gray-900">{quizStats.totalQuizzes}</p>
                   <p className="text-sm text-gray-600">Total Quizzes</p>
                 </div>
               </div>
@@ -140,7 +197,7 @@ const QuizzesPage: React.FC = () => {
                   <CheckCircle className="h-6 w-6 text-green-600" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-gray-900">2</p>
+                  <p className="text-2xl font-bold text-gray-900">{quizStats.completed}</p>
                   <p className="text-sm text-gray-600">Completed</p>
                 </div>
               </div>
@@ -151,7 +208,7 @@ const QuizzesPage: React.FC = () => {
                   <RotateCcw className="h-6 w-6 text-purple-600" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-gray-900">88%</p>
+                  <p className="text-2xl font-bold text-gray-900">{quizStats.averageScore}%</p>
                   <p className="text-sm text-gray-600">Average Score</p>
                 </div>
               </div>
@@ -162,7 +219,7 @@ const QuizzesPage: React.FC = () => {
                   <Play className="h-6 w-6 text-orange-600" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-gray-900">1</p>
+                  <p className="text-2xl font-bold text-gray-900">{quizStats.available}</p>
                   <p className="text-sm text-gray-600">Available</p>
                 </div>
               </div>

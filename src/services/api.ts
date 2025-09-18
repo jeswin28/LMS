@@ -228,6 +228,24 @@ class ApiService {
     async getSubmissions(): Promise<ApiResponse<any>> {
         return this.request('/submissions');
     }
+
+    // Settings endpoints
+    async getUserSettings(): Promise<ApiResponse<any>> {
+        return this.request('/user/settings');
+    }
+
+    async updateUserSettings(settings: any): Promise<ApiResponse<any>> {
+        return this.request('/user/settings', {
+            method: 'PUT',
+            body: JSON.stringify(settings),
+        });
+    }
+
+    async exportUserData(): Promise<ApiResponse<any>> {
+        return this.request('/user/export-data', {
+            method: 'POST',
+        });
+    }
 }
 
 export const apiService = new ApiService();

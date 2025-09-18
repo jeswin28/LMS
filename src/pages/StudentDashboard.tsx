@@ -49,7 +49,7 @@ const StudentDashboard: React.FC = () => {
           { label: 'Enrolled Courses', value: courseCount.toString(), icon: BookOpen },
           { label: 'Completed Courses', value: completedCount.toString(), icon: Award },
           { label: 'Hours Learned', value: hoursLearned.toString(), icon: Clock },
-          { label: 'Current Streak', value: '15 days', icon: Calendar }
+          { label: 'Current Streak', value: '0 days', icon: Calendar }
         ]);
       } catch (error) {
         showToast('error', 'Failed to load dashboard data');
@@ -72,7 +72,7 @@ const StudentDashboard: React.FC = () => {
           {/* Welcome Section */}
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              Welcome back, Student! 👋
+              Welcome back, {user?.name || 'Student'}! 👋
             </h1>
             <p className="text-gray-600">
               Continue your learning journey. You're doing great!

@@ -18,10 +18,10 @@ const AdminDashboard: React.FC = () => {
   });
 
   const [stats, setStats] = useState([
-    { label: 'Total Users', value: '0', change: '+0%', icon: Users, color: 'text-blue-600' },
-    { label: 'Active Courses', value: '0', change: '+0%', icon: BookOpen, color: 'text-emerald-600' },
-    { label: 'Pending Approvals', value: '0', change: '+0%', icon: CheckCircle, color: 'text-orange-600' },
-    { label: 'Monthly Revenue', value: '$0', change: '+0%', icon: TrendingUp, color: 'text-purple-600' }
+    { label: 'Total Users', value: '0', change: '0%', icon: Users, color: 'text-blue-600' },
+    { label: 'Active Courses', value: '0', change: '0%', icon: BookOpen, color: 'text-emerald-600' },
+    { label: 'Pending Approvals', value: '0', change: '0%', icon: CheckCircle, color: 'text-orange-600' },
+    { label: 'Monthly Revenue', value: '$0', change: '0%', icon: TrendingUp, color: 'text-purple-600' }
   ]);
 
   const [users, setUsers] = useState<any[]>([]);
@@ -42,10 +42,10 @@ const AdminDashboard: React.FC = () => {
         if (analyticsResponse.success && analyticsResponse.data) {
           const analytics = analyticsResponse.data;
           setStats([
-            { label: 'Total Users', value: analytics.totalUsers?.toString() || '0', change: `+${analytics.userGrowth || 0}%`, icon: Users, color: 'text-blue-600' },
-            { label: 'Active Courses', value: analytics.activeCourses?.toString() || '0', change: `+${analytics.courseGrowth || 0}%`, icon: BookOpen, color: 'text-emerald-600' },
-            { label: 'Pending Approvals', value: analytics.pendingApprovals?.toString() || '0', change: '+0%', icon: CheckCircle, color: 'text-orange-600' },
-            { label: 'Monthly Revenue', value: `$${analytics.totalRevenue || 0}`, change: `+${analytics.revenueGrowth || 0}%`, icon: TrendingUp, color: 'text-purple-600' }
+            { label: 'Total Users', value: analytics.totalUsers?.toString() || '0', change: `${analytics.userGrowth || 0}%`, icon: Users, color: 'text-blue-600' },
+            { label: 'Active Courses', value: analytics.activeCourses?.toString() || '0', change: `${analytics.courseGrowth || 0}%`, icon: BookOpen, color: 'text-emerald-600' },
+            { label: 'Pending Approvals', value: analytics.pendingApprovals?.toString() || '0', change: '0%', icon: CheckCircle, color: 'text-orange-600' },
+            { label: 'Monthly Revenue', value: `$${analytics.totalRevenue || 0}`, change: `${analytics.revenueGrowth || 0}%`, icon: TrendingUp, color: 'text-purple-600' }
           ]);
         }
 
@@ -128,7 +128,7 @@ const AdminDashboard: React.FC = () => {
                     <p className="text-sm text-gray-600">{stat.label}</p>
                     <div className="flex items-center space-x-2">
                       <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
-                      <span className={`text-sm font-medium ${stat.change.startsWith('+') ? 'text-green-600' : 'text-red-600'
+                      <span className={`text-sm font-medium ${stat.change.startsWith('+') ? 'text-green-600' : stat.change.startsWith('-') ? 'text-red-600' : 'text-gray-600'
                         }`}>
                         {stat.change}
                       </span>

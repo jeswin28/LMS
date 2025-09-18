@@ -1,90 +1,36 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Bell, Check, Trash2, Filter, Mail, MessageSquare, Award, BookOpen } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import Navbar from '../components/Navbar';
 import Card from '../components/Card';
 import { useUser } from '../context/UserContext';
 import { useToast } from '../components/ToastProvider';
+import apiService from '../services/api';
 
 const NotificationsPage: React.FC = () => {
   const { user } = useUser();
   const { showToast } = useToast();
   const [filter, setFilter] = useState('all');
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const notifications = [
-    {
-      id: 1,
-      type: 'assignment',
-      title: 'New Assignment: React Component Design',
-      message: 'A new assignment has been posted in React Development Fundamentals',
-      course: 'React Development Fundamentals',
-      time: '2 hours ago',
-      read: false,
-      icon: BookOpen,
-      color: 'text-blue-600',
-      bgColor: 'bg-blue-100'
-    },
-    {
-      id: 2,
-      type: 'grade',
-      title: 'Assignment Graded',
-      message: 'Your API Integration Project has been graded: 92/100',
-      course: 'Advanced JavaScript Concepts',
-      time: '5 hours ago',
-      read: false,
-      icon: Award,
-      color: 'text-green-600',
-      bgColor: 'bg-green-100'
-    },
-    {
-      id: 3,
-      type: 'message',
-      title: 'New Message from Dr. Sarah Johnson',
-      message: 'Great work on your latest submission! Keep it up.',
-      course: 'React Development Fundamentals',
-      time: '1 day ago',
-      read: true,
-      icon: MessageSquare,
-      color: 'text-purple-600',
-      bgColor: 'bg-purple-100'
-    },
-    {
-      id: 4,
-      type: 'announcement',
-      title: 'Course Update Available',
-      message: 'New lessons have been added to Node.js Backend Development',
-      course: 'Node.js Backend Development',
-      time: '2 days ago',
-      read: true,
-      icon: Bell,
-      color: 'text-orange-600',
-      bgColor: 'bg-orange-100'
-    },
-    {
-      id: 5,
-      type: 'reminder',
-      title: 'Quiz Reminder',
-      message: 'JavaScript Fundamentals Quiz is due in 2 days',
-      course: 'Advanced JavaScript Concepts',
-      time: '3 days ago',
-      read: false,
-      icon: Mail,
-      color: 'text-red-600',
-      bgColor: 'bg-red-100'
-    },
-    {
-      id: 6,
-      type: 'achievement',
-      title: 'Achievement Unlocked!',
-      message: 'You\'ve completed 5 courses and earned the "Dedicated Learner" badge',
-      course: null,
-      time: '1 week ago',
-      read: true,
-      icon: Award,
-      color: 'text-yellow-600',
-      bgColor: 'bg-yellow-100'
-    }
-  ];
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      try {
+        const response = await apiService.getNotifications();
+        if (response.success && response.data) {
+          setNotifications(response.data);
+        }
+      } catch (error) {
+        console.error('Failed to load notifications:', error);
+        showToast('error', 'Failed to load notifications');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchNotifications();
+  }, [showToast]);
 
   const filteredNotifications = notifications.filter(notification => {
     if (filter === 'all') return true;
@@ -94,31 +40,77 @@ const NotificationsPage: React.FC = () => {
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
-  const handleMarkAsRead = (id: number) => {
-    showToast('success', 'Notification marked as read');
+  const handleMarkAsRead = async (id: number) => {
+    try {
+      const response = await apiService.markNotificationAsRead(id);
+      if (response.success) {
+        setNotifications(prev =>
+          prev.map(notification =>
+            notification.id === id ? { ...notification, read: true } : notification
+          )
+        );
+        showToast('success', 'Notification marked as read');
+      } else {
+        showToast('error', response.error || 'Failed to mark notification as read');
+      }
+    } catch (error) {
+      showToast('error', 'Failed to mark notification as read');
+    }
   };
 
-  const handleMarkAllAsRead = () => {
-    showToast('success', 'All notifications marked as read');
+  const handleMarkAllAsRead = async () => {
+    try {
+      const response = await apiService.markAllNotificationsAsRead();
+      if (response.success) {
+        setNotifications(prev =>
+          prev.map(notification => ({ ...notification, read: true }))
+        );
+        showToast('success', 'All notifications marked as read');
+      } else {
+        showToast('error', response.error || 'Failed to mark all notifications as read');
+      }
+    } catch (error) {
+      showToast('error', 'Failed to mark all notifications as read');
+    }
   };
 
-  const handleDelete = (id: number) => {
-    showToast('success', 'Notification deleted');
+  const handleDelete = async (id: number) => {
+    try {
+      const response = await apiService.deleteNotification(id);
+      if (response.success) {
+        setNotifications(prev => prev.filter(notification => notification.id !== id));
+        showToast('success', 'Notification deleted');
+      } else {
+        showToast('error', response.error || 'Failed to delete notification');
+      }
+    } catch (error) {
+      showToast('error', 'Failed to delete notification');
+    }
   };
 
-  const handleDeleteAll = () => {
+  const handleDeleteAll = async () => {
     if (window.confirm('Are you sure you want to delete all notifications?')) {
-      showToast('success', 'All notifications deleted');
+      try {
+        const response = await apiService.deleteAllNotifications();
+        if (response.success) {
+          setNotifications([]);
+          showToast('success', 'All notifications deleted');
+        } else {
+          showToast('error', response.error || 'Failed to delete all notifications');
+        }
+      } catch (error) {
+        showToast('error', 'Failed to delete all notifications');
+      }
     }
   };
 
   return (
     <div className="flex h-screen bg-gray-50">
       <Sidebar userRole={user?.role || 'student'} />
-      
+
       <div className="flex-1 flex flex-col overflow-hidden lg:ml-0">
         <Navbar />
-        
+
         <main className="flex-1 overflow-y-auto p-6">
           <div className="flex justify-between items-center mb-8">
             <div>
@@ -215,11 +207,10 @@ const NotificationsPage: React.FC = () => {
                   <button
                     key={filterOption.value}
                     onClick={() => setFilter(filterOption.value)}
-                    className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
-                      filter === filterOption.value
+                    className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${filter === filterOption.value
                         ? 'bg-emerald-600 text-white'
                         : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                    }`}
+                      }`}
                   >
                     {filterOption.label}
                   </button>
@@ -230,73 +221,114 @@ const NotificationsPage: React.FC = () => {
 
           {/* Notifications List */}
           <div className="space-y-4">
-            {filteredNotifications.map((notification) => (
-              <Card key={notification.id} hover className={`${!notification.read ? 'border-l-4 border-l-emerald-500' : ''}`}>
-                <div className="flex items-start space-x-4">
-                  <div className={`p-2 rounded-lg ${notification.bgColor}`}>
-                    <notification.icon className={`h-5 w-5 ${notification.color}`} />
-                  </div>
-                  
-                  <div className="flex-1">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-2 mb-1">
-                          <h3 className={`font-semibold ${!notification.read ? 'text-gray-900' : 'text-gray-700'}`}>
-                            {notification.title}
-                          </h3>
-                          {!notification.read && (
-                            <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
-                          )}
-                        </div>
-                        <p className="text-gray-600 mb-2">{notification.message}</p>
-                        <div className="flex items-center space-x-4 text-sm text-gray-500">
-                          <span>{notification.time}</span>
-                          {notification.course && (
-                            <>
-                              <span>•</span>
-                              <span>{notification.course}</span>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center space-x-2">
-                        {!notification.read && (
-                          <button
-                            onClick={() => handleMarkAsRead(notification.id)}
-                            className="p-1 text-emerald-600 hover:text-emerald-800 hover:bg-emerald-50 rounded"
-                            title="Mark as read"
-                          >
-                            <Check className="h-4 w-4" />
-                          </button>
-                        )}
-                        <button
-                          onClick={() => handleDelete(notification.id)}
-                          className="p-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded"
-                          title="Delete notification"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </Card>
-            ))}
-
-            {filteredNotifications.length === 0 && (
+            {isLoading ? (
               <Card>
                 <div className="text-center py-12">
-                  <Bell className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No notifications</h3>
-                  <p className="text-gray-600">
-                    {filter === 'all' 
-                      ? 'You\'re all caught up!' 
-                      : `No ${filter} notifications found.`
-                    }
-                  </p>
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600 mx-auto mb-4"></div>
+                  <p className="text-gray-600">Loading notifications...</p>
                 </div>
               </Card>
+            ) : (
+              <>
+                {filteredNotifications.map((notification) => {
+                  // Map notification type to icon and colors
+                  const getNotificationIcon = (type: string) => {
+                    switch (type) {
+                      case 'assignment': return BookOpen;
+                      case 'grade': return Award;
+                      case 'message': return MessageSquare;
+                      case 'announcement': return Bell;
+                      case 'reminder': return Mail;
+                      case 'achievement': return Award;
+                      default: return Bell;
+                    }
+                  };
+
+                  const getNotificationColors = (type: string) => {
+                    switch (type) {
+                      case 'assignment': return { color: 'text-blue-600', bgColor: 'bg-blue-100' };
+                      case 'grade': return { color: 'text-green-600', bgColor: 'bg-green-100' };
+                      case 'message': return { color: 'text-purple-600', bgColor: 'bg-purple-100' };
+                      case 'announcement': return { color: 'text-orange-600', bgColor: 'bg-orange-100' };
+                      case 'reminder': return { color: 'text-red-600', bgColor: 'bg-red-100' };
+                      case 'achievement': return { color: 'text-yellow-600', bgColor: 'bg-yellow-100' };
+                      default: return { color: 'text-gray-600', bgColor: 'bg-gray-100' };
+                    }
+                  };
+
+                  const IconComponent = getNotificationIcon(notification.type);
+                  const colors = getNotificationColors(notification.type);
+
+                  return (
+                    <Card key={notification.id} hover className={`${!notification.read ? 'border-l-4 border-l-emerald-500' : ''}`}>
+                      <div className="flex items-start space-x-4">
+                        <div className={`p-2 rounded-lg ${colors.bgColor}`}>
+                          <IconComponent className={`h-5 w-5 ${colors.color}`} />
+                        </div>
+
+                        <div className="flex-1">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center space-x-2 mb-1">
+                                <h3 className={`font-semibold ${!notification.read ? 'text-gray-900' : 'text-gray-700'}`}>
+                                  {notification.title}
+                                </h3>
+                                {!notification.read && (
+                                  <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
+                                )}
+                              </div>
+                              <p className="text-gray-600 mb-2">{notification.message}</p>
+                              <div className="flex items-center space-x-4 text-sm text-gray-500">
+                                <span>{notification.time || notification.createdAt}</span>
+                                {notification.course && (
+                                  <>
+                                    <span>•</span>
+                                    <span>{notification.course}</span>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="flex items-center space-x-2">
+                              {!notification.read && (
+                                <button
+                                  onClick={() => handleMarkAsRead(notification.id)}
+                                  className="p-1 text-emerald-600 hover:text-emerald-800 hover:bg-emerald-50 rounded"
+                                  title="Mark as read"
+                                >
+                                  <Check className="h-4 w-4" />
+                                </button>
+                              )}
+                              <button
+                                onClick={() => handleDelete(notification.id)}
+                                className="p-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded"
+                                title="Delete notification"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </Card>
+                  );
+                })}
+
+                {filteredNotifications.length === 0 && !isLoading && (
+                  <Card>
+                    <div className="text-center py-12">
+                      <Bell className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">No notifications</h3>
+                      <p className="text-gray-600">
+                        {filter === 'all'
+                          ? 'You\'re all caught up!'
+                          : `No ${filter} notifications found.`
+                        }
+                      </p>
+                    </div>
+                  </Card>
+                )}
+              </>
             )}
           </div>
         </main>

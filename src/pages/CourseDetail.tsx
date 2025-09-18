@@ -61,37 +61,11 @@ const CourseDetail: React.FC = () => {
           setAssignments(courseAssignments);
         }
 
-        // Mock lessons data (in real app, this would come from API)
-        const mockLessons: Lesson[] = [
-          {
-            _id: '1',
-            title: 'Introduction to React',
-            description: 'Learn the basics of React and its core concepts',
-            videoUrl: 'https://www.youtube.com/embed/dQw4w9WgXcQ',
-            duration: 15,
-            isCompleted: false,
-            order: 1
-          },
-          {
-            _id: '2',
-            title: 'Components and Props',
-            description: 'Understanding React components and prop passing',
-            videoUrl: 'https://www.youtube.com/embed/dQw4w9WgXcQ',
-            duration: 20,
-            isCompleted: false,
-            order: 2
-          },
-          {
-            _id: '3',
-            title: 'State Management',
-            description: 'Managing component state and lifecycle',
-            videoUrl: 'https://www.youtube.com/embed/dQw4w9WgXcQ',
-            duration: 25,
-            isCompleted: false,
-            order: 3
-          }
-        ];
-        setLessons(mockLessons);
+        // Fetch lessons for this course
+        const lessonsResponse = await apiService.getCourseLessons(id);
+        if (lessonsResponse.success && lessonsResponse.data) {
+          setLessons(lessonsResponse.data);
+        }
       } catch (error) {
         showToast('error', 'Failed to load course data');
       } finally {
@@ -108,13 +82,30 @@ const CourseDetail: React.FC = () => {
 
   const markLessonComplete = async (lessonId: string) => {
     try {
-      // In real app, this would call an API to mark lesson as complete
-      setLessons(prev => prev.map(lesson =>
-        lesson._id === lessonId
-          ? { ...lesson, isCompleted: true }
-          : lesson
-      ));
-      showToast('success', 'Lesson marked as complete!');
+      const response = await apiService.markLessonComplete(lessonId);
+      if (response.success) {
+        setLessons(prev => prev.map(lesson =>
+          lesson._id === lessonId
+            ? { ...lesson, isCompleted: true }
+            : lesson
+        ));
+        showToast('success', 'Lesson marked as complete!');
+
+        // Check if course is now completed and show achievement notification
+        const updatedLessons = lessons.map(lesson =>
+          lesson._id === lessonId
+            ? { ...lesson, isCompleted: true }
+            : lesson
+        );
+        const completedLessons = updatedLessons.filter(lesson => lesson.isCompleted).length;
+        const totalLessons = updatedLessons.length;
+
+        if (completedLessons === totalLessons && totalLessons > 0) {
+          showToast('success', '🎉 Congratulations! You completed the course and earned an achievement!');
+        }
+      } else {
+        showToast('error', response.error || 'Failed to mark lesson as complete');
+      }
     } catch (error) {
       showToast('error', 'Failed to mark lesson as complete');
     }

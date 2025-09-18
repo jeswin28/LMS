@@ -40,18 +40,22 @@ const AssignmentsPage: React.FC = () => {
     const fetchAssignments = async () => {
       try {
         const response = await apiService.getAssignments();
-        if (response.success) {
-          setAssignments(response.data || []);
+        if (response.success && response.data) {
+          setAssignments(response.data);
+        } else {
+          setAssignments([]);
         }
       } catch (error) {
+        console.error('Failed to load assignments:', error);
         showToast('error', 'Failed to load assignments');
+        setAssignments([]);
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchAssignments();
-  }, []);
+  }, [showToast]);
 
   const handleSubmitAssignment = async () => {
     if (!selectedAssignment || !submissionFile) {
